@@ -1,0 +1,43 @@
+# Finalización de la Fase 1: Roles, Rutas y Layout Responsivo
+
+Esta etapa concluye la base funcional de toda la aplicación, enfocándose en la seguridad de acceso (qué módulo puede ver quién) y la experiencia de usuario compartida en dispositivos móviles, ya que el personal de campo usará el sistema fundamentalmente interactuando desde teléfonos o tabletas.
+
+## User Review Required
+> [!IMPORTANT]
+> **Configuración de Roles:** Por defecto asumiré que el acceso a todos los módulos básicos (Inventario, Producción, Salud, etc.) será liberado para *Encargado* y *Administrador*. Sin embargo, restringiré el menú de **"Configuración"** únicamente a los usuarios con rol de *ADMINISTRADOR*. Los *EMPLEADOS* podrán ver y operar el inventario y producción base. Por favor, confírmame si estás de acuerdo con esta distribución o requieres bloqueos específicos por rol en otros módulos.
+
+## Proposed Changes
+
+### 1. Sistema de Enrutamiento y Seguridad (Middleware Real)
+***
+#### [NEW] `src/middleware.ts`
+Implementaremos el *middleware* oficial de Next.js en la raíz del proyecto para interceptar automáticamente las peticiones y validar la sesión mediante Supabase antes de que si quiera cargue una página.
+#### [MODIFY] `src/app/(dashboard)/layout.tsx`
+Modificaremos el contenedor principal del proyecto para interceptar el acceso a rutas protegidas por roles. Se integrará una función de guardián que evalúe el rol del perfil asignado (`EMPLEADO`, `ENCARGADO` o `ADMINISTRADOR`) y rechace o permita el montaje de los sub-módulos.
+#### [DELETE] `src/proxy.ts`
+Eliminaremos este archivo antiguo/obsoleto que Next.js no detecta como un middleware válido.
+
+### 2. Navegación, Componentes Compartidos y Sidebar Móvil
+***
+Para lograr una compatibilidad móvil real, necesitamos que el menú de navegación reaccione al botón "hamburguesa" que actualmente no tiene funcionalidad.
+#### [NEW] `src/components/layout/MobileSidebarProvider.tsx`
+Se implementará un proveedor de Contexto liviano en React (o estado interno en el Layout) para coordinar cuándo se abre y cierra el *Sidebar* en versión móvil.
+#### [MODIFY] `src/components/layout/Sidebar.tsx`
+- Refactorización para inyectarle clases que permitan su despliegue y cierre en versión celular (overlay).
+- Filtrado de hipervínculos: La barra lateral verificará dinámicamente el `role` del usuario inyectado. Si el usuario es *EMPLEADO*, ocultará el botón "Configuración".
+#### [MODIFY] `src/components/layout/Header.tsx`
+- Activación del botón `<Menu />` para que alerte el despliegue de la barra lateral en pantallas pequeñas.
+
+## Open Questions
+> [!NOTE]
+> 1. Para los usuarios no autorizados que intenten ir a una URL prohibida por su rol (por ejemplo, `/configuracion` siendo `EMPLEADO`): ¿Deseas que los redirijamos sutilmente devuelta a `/` (Inicio/Dashboard) o que se les muestre una página/pantalla grande de "Acceso Denegado"?
+
+## Verification Plan
+
+### Automated Tests
+- Arrancar al menos con una terminal local probando la denegación en navegador para un usuario estándar.
+
+### Manual Verification
+1. Ingresaremos y daremos clic al botón del menú hamburguesa (simulando un celular) para validar la transición de la barra lateral.
+2. Editaremos manualmente en la base de datos nuestro rol a "EMPLEADO" para comprobar que "Configuración" desaparece.
+3. Trataremos de forzar la entrada manual escribiendo `/configuracion` en la URL y documentaremos cómo el sistema detiene nuestra navegación.

@@ -61,7 +61,7 @@ export async function createEggRecord(data: EggProductionInput) {
 export async function getCows() {
   const supabase = createClient();
   const { data, error } = await (await supabase)
-    .from('animals').select('id, code, notes').limit(100);
+    .from('animals').select('id, code, notes').ilike('code', 'VAC-%').limit(100);
 
   const mappedData = data ? data.map((a: any) => ({
     id: a.id,

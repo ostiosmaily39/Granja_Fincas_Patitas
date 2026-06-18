@@ -46,6 +46,7 @@ const adminNavItems: NavItem[] = [
   { name: 'Personal', href: '/dashboard/personal', icon: UserCheck },
   { name: 'Alertas', href: '/dashboard/alertas', icon: Bell },
   { name: 'Auditoría', href: '/dashboard/auditoria', icon: Activity },
+  { name: 'Reportes', href: '/dashboard/reportes', icon: BarChart3 },
 ];
 
 const employeeNavItems: NavItem[] = [

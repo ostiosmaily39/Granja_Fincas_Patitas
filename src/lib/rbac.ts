@@ -16,6 +16,7 @@ export const ROUTE_PERMISSIONS: Record<string, Rol[]> = {
   '/dashboard/vacunacion': ['ADMINISTRADOR', 'ENCARGADO'],
   '/dashboard/actividad': ['ADMINISTRADOR'],
   '/dashboard/configuracion': ['ADMINISTRADOR'],
+  '/dashboard/reportes': ['ADMINISTRADOR'],
 
   // ===== Rutas Empleado / Encargado =====
   '/dashboard/empleado/tareas': ['ADMINISTRADOR', 'EMPLEADO', 'ENCARGADO'],

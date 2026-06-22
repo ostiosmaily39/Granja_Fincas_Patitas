@@ -7,12 +7,6 @@ import Badge from '@/components/ui/Badge';
 import {
   Bell, AlertCircle, Loader2, Wheat, Package, RefreshCw,
 } from 'lucide-react';
-<<<<<<< HEAD
-=======
-import { createClient } from '@/utils/supabase/client';
-import { healthService } from '@/services/healthService';
-import { SupabaseHealthRepository } from '@/repositories/supabase/HealthRepository';
->>>>>>> origin/main
 import { SupabaseInventoryRepository } from '@/repositories/supabase/InventoryRepository';
 import { createClient } from '@/utils/supabase/client';
 
@@ -68,14 +62,13 @@ const ALERT_VARIANTS: Record<string, 'danger' | 'warning' | 'neutral'> = {
 export default function AlertasPage() {
   const [repo] = useState(() => new SupabaseInventoryRepository(createClient()));
 
-  // ── Alertas de inventario general (las que ya existían) ──
+  // ── Alertas de inventario general ──
   const [stockAlerts, setStockAlerts] = useState<StockAlertRow[]>([]);
   const [stockAlertsLoading, setStockAlertsLoading] = useState(true);
   const [stockAlertsError, setStockAlertsError] = useState<string | null>(null);
 
   const loadStockAlerts = useCallback(async () => {
     try {
-<<<<<<< HEAD
       setStockAlertsLoading(true);
       setStockAlertsError(null);
       const { data, error } = await createClient()
@@ -86,17 +79,10 @@ export default function AlertasPage() {
         `)
         .eq('status', 'activa')
         .order('created_at', { ascending: false });
-=======
-      const [vaccAlerts, hAlerts, supplies, reproEvents] = await Promise.all([
-        healthService.getVaccinationAlerts(),
-        healthRepo.getHealthAlerts(),
-        inventoryRepo.listSupplies(),
-        reproRepo.list(),
-      ]);
->>>>>>> origin/main
 
       if (error) throw new Error(error.message);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rows = (data ?? []).map((a: any) => ({
         id: a.id,
         supply_id: a.supplies?.id ?? '',
@@ -136,6 +122,9 @@ export default function AlertasPage() {
   }, []);
 
   useEffect(() => { void loadFoodAlerts(); }, [loadFoodAlerts]);
+
+  // La variable repo se usa para futuras extensiones; suprimir warning si es necesario
+  void repo;
 
   const handleRefresh = () => {
     void loadStockAlerts();

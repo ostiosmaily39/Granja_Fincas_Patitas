@@ -117,6 +117,9 @@ export type AnimalTimelineFilter = {
   eventTypes?: AnimalEventType[];
   fromDate?: string;
   toDate?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
 };
 
 // ====================================================================

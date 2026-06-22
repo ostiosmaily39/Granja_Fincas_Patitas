@@ -2,10 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Syringe, X, Loader2, ChevronDown, AlertTriangle, CheckSquare, Square } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
-import { SupabaseHealthRepository } from '@/repositories/supabase/HealthRepository';
-import { SupabaseInventoryRepository } from '@/repositories/supabase/InventoryRepository';
-import { SupabaseAnimalRepository } from '@/repositories/supabase/AnimalRepository';
+import { healthService } from '@/services/healthService';
+import { animalService } from '@/services/animalService';
 import type { VaccineScheme } from '@/types/domain/health.schema';
 import type { AnimalWithRelations, Species } from '@/types/domain/animal.schema';
 
@@ -40,27 +38,19 @@ export default function MassVaccinationModal({ isOpen, onClose, onSuccess }: Pro
   const [saveProgress, setSaveProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const [healthRepo] = useState(() => new SupabaseHealthRepository(createClient()));
-  const [inventoryRepo] = useState(() => new SupabaseInventoryRepository(createClient()));
-  const [animalRepo] = useState(() => new SupabaseAnimalRepository(createClient()));
-
   const loadStaticData = useCallback(async () => {
     if (!isOpen) return;
     try {
       const [speciesData, suppliesData] = await Promise.all([
-        animalRepo.getSpecies(),
-        inventoryRepo.listSupplies(),
+        animalService.getSpecies(),
+        healthService.getAvailableSupplies(),
       ]);
       setSpecies(speciesData);
-      setSupplies(
-        suppliesData
-          .filter((s) => s.current_stock > 0)
-          .map((s) => ({ id: s.id, name: s.name, unit: s.unit, current_stock: s.current_stock }))
-      );
+      setSupplies(suppliesData);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cargar datos');
     }
-  }, [isOpen, animalRepo, inventoryRepo]);
+  }, [isOpen]);
 
   useEffect(() => {
     loadStaticData();
@@ -77,11 +67,11 @@ export default function MassVaccinationModal({ isOpen, onClose, onSuccess }: Pro
 
     setLoadingAnimals(true);
     try {
-      const [allAnimals, schemesData] = await Promise.all([
-        animalRepo.getAll(),
-        healthRepo.getVaccineSchemes(speciesId),
+      const [animalsData, schemesData] = await Promise.all([
+        animalService.list({ speciesId, status: 'activo' }),
+        healthService.getVaccineSchemes(speciesId),
       ]);
-      setAnimals(allAnimals.filter((a) => a.species_id === speciesId && a.status === 'activo'));
+      setAnimals(animalsData);
       setSchemes(schemesData);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al cargar animales');
@@ -154,7 +144,7 @@ export default function MassVaccinationModal({ isOpen, onClose, onSuccess }: Pro
 
     try {
       for (const animalId of animalList) {
-        await healthRepo.registerVaccination({
+        await healthService.registerVaccination(animalId, {
           animal_id: animalId,
           scheme_id: schemeId || undefined,
           supply_id: supplyId || undefined,

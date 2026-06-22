@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '@/components/ui/Modal';
 import { CreateHealthEventInput } from '@/types/domain/health.schema';
-import { createClient } from '@/utils/supabase/client';
-import { SupabaseHealthRepository } from '@/repositories/supabase/HealthRepository';
+import { healthService } from '@/services/healthService';
 import { Loader2 } from 'lucide-react';
 
 interface HealthEventModalProps {
@@ -21,7 +20,6 @@ export default function HealthEventModal({
   onSuccess,
 }: HealthEventModalProps) {
   const [loading, setLoading] = useState(false);
-  const [repo] = useState(() => new SupabaseHealthRepository(createClient()));
 
   const [formData, setFormData] = useState<Partial<CreateHealthEventInput>>({
     event_type: 'enfermedad',
@@ -88,7 +86,7 @@ export default function HealthEventModal({
             ]
           : undefined;
 
-      await repo.addHealthEvent({
+      await healthService.registerEvent(animalId, {
         animal_id: animalId,
         event_type: formData.event_type!,
         detected_at: formData.detected_at!,

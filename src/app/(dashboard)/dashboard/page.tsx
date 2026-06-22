@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import AdminDashboard from './AdminDashboard';
 import EmpleadoDashboard from './EmpleadoDashboard';
 import { Loader2 } from 'lucide-react';
+import { isAdministrator } from '@/lib/role-utils';
 
 export default function DashboardPage() {
   const { role, loading } = useAuth();
@@ -17,7 +18,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (role === 'ADMINISTRADOR') {
+  if (isAdministrator(role)) {
     return <AdminDashboard />;
   }
 

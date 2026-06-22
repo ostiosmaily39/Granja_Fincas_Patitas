@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --background: #FAF9F6; /* Soft sand off-white */
+  --foreground: #1c261e; /* Deep green-grey */
+  --brand: #4a7c59; /* Brand Olive Green */
+  --brand-hover: #3a6245;
+  --brand-light: #e4efe4;
+  --sidebar-bg: #F5F5F0; /* Creamy beige for sidebar */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121814; /* Very dark green/black */
+    --foreground: #e4efe4;
+    --brand: #59946a;
+    --brand-hover: #6eb784;
+    --brand-light: #2a4131;
+    --glass-bg: rgba(25, 35, 28, 0.65);
+    --glass-border: rgba(89, 148, 106, 0.2);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-light: var(--brand-light);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-glass-bg: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Base utility for Glassmorphism panels */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}

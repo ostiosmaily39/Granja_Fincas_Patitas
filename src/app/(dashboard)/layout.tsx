@@ -9,6 +9,8 @@ import { SidebarProvider } from '@/contexts/SidebarContext';
 import { SearchProvider } from '@/contexts/SearchContext'; // ✅ NUEVO
 import { SupabaseProfileRepository } from '@/repositories/supabase/ProfileRepository';
 import { redirect } from 'next/navigation';
+import DashboardAuthSync from '@/components/layout/DashboardAuthSync';
+import { normalizeRole } from '@/lib/role-utils';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
@@ -38,14 +40,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   const userData = {
+    id: user.id,
     email: user.email!,
     full_name: profile?.full_name || undefined,
-    role: profile?.role || 'EMPLEADO',
+    role: normalizeRole(profile?.role) ?? 'EMPLEADO',
   };
 
   return (
     <SidebarProvider>
-      <SearchProvider> {/* ✅ NUEVO */}
+      <SearchProvider>
+        <DashboardAuthSync user={userData} />
         <DashboardShell
           header={<Header user={userData} />}
           sidebar={<Sidebar role={userData.role} />}

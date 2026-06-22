@@ -5,9 +5,8 @@ import { Syringe, Plus, Pencil, Trash2, Loader2, ChevronDown, AlertTriangle, X, 
 import { RoleGuard } from '@/components/RoleGuard';
 import PageHeader from '@/components/ui/PageHeader';
 import Badge from '@/components/ui/Badge';
-import { createClient } from '@/utils/supabase/client';
-import { SupabaseHealthRepository } from '@/repositories/supabase/HealthRepository';
-import { SupabaseAnimalRepository } from '@/repositories/supabase/AnimalRepository';
+import { healthService } from '@/services/healthService';
+import { animalService } from '@/services/animalService';
 import type { VaccineScheme, CreateVaccineSchemeInput } from '@/types/domain/health.schema';
 import type { Species } from '@/types/domain/animal.schema';
 import MassVaccinationModal from '@/components/animales/MassVaccinationModal';
@@ -43,9 +42,6 @@ export default function VacunacionPage() {
   const [form, setForm] = useState<CreateVaccineSchemeInput>(EMPTY_FORM);
   const [massVaccineOpen, setMassVaccineOpen] = useState(false);
 
-  const [healthRepo] = useState(() => new SupabaseHealthRepository(createClient()));
-  const [animalRepo] = useState(() => new SupabaseAnimalRepository(createClient()));
-
   // ── Escuchar búsqueda global del Header ──
   useEffect(() => {
     const handleGlobalSearch = (event: Event) => {
@@ -61,8 +57,8 @@ export default function VacunacionPage() {
     setLoading(true);
     try {
       const [schemesData, speciesData] = await Promise.all([
-        healthRepo.getVaccineSchemes(filterSpeciesId || undefined),
-        animalRepo.getSpecies(),
+        healthService.getVaccineSchemes(filterSpeciesId || undefined),
+        animalService.getSpecies(),
       ]);
       setSchemes(schemesData);
       setSpecies(speciesData);
@@ -71,7 +67,7 @@ export default function VacunacionPage() {
     } finally {
       setLoading(false);
     }
-  }, [healthRepo, animalRepo, filterSpeciesId]);
+  }, [filterSpeciesId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -127,9 +123,9 @@ export default function VacunacionPage() {
     setSaving(true);
     try {
       if (modalMode === 'create') {
-        await healthRepo.createVaccineScheme(form);
+        await healthService.createVaccineScheme(form);
       } else if (editingId) {
-        await healthRepo.updateVaccineScheme(editingId, form);
+        await healthService.updateVaccineScheme(editingId, form);
       }
       setModalOpen(false);
       void loadData();
@@ -143,7 +139,7 @@ export default function VacunacionPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar este esquema? No se eliminarán los registros históricos ya aplicados.')) return;
     try {
-      await healthRepo.deleteVaccineScheme(id);
+      await healthService.deleteVaccineScheme(id);
       void loadData();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Error al eliminar');

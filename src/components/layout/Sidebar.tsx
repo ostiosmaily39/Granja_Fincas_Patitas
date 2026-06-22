@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { isAdministrator } from '@/lib/role-utils';
 import {
   Tractor,
   EggFried,
@@ -65,8 +66,7 @@ export default function Sidebar({ role: roleProp }: SidebarProps) {
 
   // Usa el rol del servidor si está disponible, si no el del contexto
   const role = roleProp || roleFromContext;
-
-  const navItems = role === 'ADMINISTRADOR' ? adminNavItems : employeeNavItems;
+  const navItems = isAdministrator(role) ? adminNavItems : employeeNavItems;
 
   return (
     <>
@@ -79,7 +79,7 @@ export default function Sidebar({ role: roleProp }: SidebarProps) {
             <div className="flex flex-col">
               <span className="font-bold text-base text-gray-800 tracking-tight leading-none">Fincas y Patitas</span>
               <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400 mt-1">
-                {role === 'ADMINISTRADOR' ? 'Panel Admin' : 'Panel Empleado'}
+                {isAdministrator(role) ? 'Panel Admin' : 'Panel Empleado'}
               </span>
             </div>
           </div>

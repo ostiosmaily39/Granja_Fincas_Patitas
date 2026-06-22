@@ -11,6 +11,7 @@ import {
   CheckCircle2, Clock, Filter, X,
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { healthService } from '@/services/healthService';
 import { SupabaseHealthRepository } from '@/repositories/supabase/HealthRepository';
 import { SupabaseInventoryRepository } from '@/repositories/supabase/InventoryRepository';
 import { SupabaseReproductionRepository } from '@/repositories/supabase/ReproductionRepository';
@@ -108,7 +109,7 @@ export default function AlertasPage() {
     setError(null);
     try {
       const [vaccAlerts, hAlerts, supplies, reproEvents] = await Promise.all([
-        healthRepo.getVaccinationAlerts(),
+        healthService.getVaccinationAlerts(),
         healthRepo.getHealthAlerts(),
         inventoryRepo.listSupplies(),
         reproRepo.list(),

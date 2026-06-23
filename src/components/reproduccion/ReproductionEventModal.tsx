@@ -17,6 +17,13 @@ interface ReproductionEventModalProps {
   onSuccess: () => void;
 }
 
+const ESPECIES = [
+  { value: '', label: 'Seleccionar especie…' },
+  { value: '0753a97a-a184-4197-877e-9fbf96a9ffef', label: 'Vaca' },
+  { value: '54d42a83-9721-4310-b824-ce803c48c886', label: 'Cerdo' },
+  { value: '7535273c-720c-4da6-935a-aba86b9173a3', label: 'Gallina' },
+];
+
 export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: ReproductionEventModalProps) {
   const [repo] = useState(() => new SupabaseReproductionRepository(createClient()));
   const [loading, setLoading] = useState(false);
@@ -24,6 +31,7 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
   const [females, setFemales] = useState<ReproductiveAnimalMini[]>([]);
   const [males, setMales] = useState<ReproductiveAnimalMini[]>([]);
 
+  const [especieFilter, setEspecieFilter] = useState('');
   const [femaleId, setFemaleId] = useState('');
   const [eventType, setEventType] = useState<'monta_natural' | 'inseminacion_artificial'>('monta_natural');
   const [eventDate, setEventDate] = useState('');
@@ -32,6 +40,11 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
   const [notes, setNotes] = useState('');
   const [useExternalMale, setUseExternalMale] = useState(false);
   const [responsible, setResponsible] = useState('');
+
+  const femalesFiltered = useMemo(() => {
+    if (!especieFilter) return females;
+    return females.filter((f) => f.species_id === especieFilter);
+  }, [females, especieFilter]);
 
   const femaleSpeciesId = useMemo(() => {
     return females.find((x) => x.id === femaleId)?.species_id;
@@ -54,7 +67,8 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
         setFemales(f);
         setMales(m);
         setEventDate(new Date().toISOString().slice(0, 10));
-        setFemaleId(f[0]?.id ?? '');
+        setFemaleId('');
+        setEspecieFilter('');
         setEventType('monta_natural');
         setMaleId('');
         setMaleExternal('');
@@ -70,6 +84,10 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
   }, [isOpen, repo]);
 
   useEffect(() => {
+    setFemaleId('');
+  }, [especieFilter]);
+
+  useEffect(() => {
     if (!maleId) return;
     if (!malesFiltered.some((m) => m.id === maleId)) setMaleId('');
   }, [malesFiltered, maleId]);
@@ -78,6 +96,7 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
     e.preventDefault();
     try {
       setLoading(true);
+      if (!especieFilter) throw new Error('Seleccione la especie.');
       if (!femaleId) throw new Error('Seleccione la hembra.');
       if (!eventDate) throw new Error('Indique la fecha del evento.');
       if (!responsible) throw new Error('Indique el responsable.');
@@ -127,6 +146,24 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
 
           <div>
             <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
+              Especie *
+            </label>
+            <select
+              required
+              value={especieFilter}
+              onChange={(e) => setEspecieFilter(e.target.value)}
+              className="w-full bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-[var(--brand)]"
+            >
+              {ESPECIES.map((s) => (
+                <option key={s.value} value={s.value} disabled={s.value === ''}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
               Hembra *
             </label>
             <select
@@ -136,12 +173,17 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
               className="w-full bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-[var(--brand)]"
             >
               <option value="">Seleccionar…</option>
-              {females.map((a) => (
+              {femalesFiltered.map((a) => (
                 <option key={a.id} value={a.id}>
                   {labelAnimal(a)}
                 </option>
               ))}
             </select>
+            {especieFilter && femalesFiltered.length === 0 && (
+              <p className="text-xs text-amber-600 mt-2 font-medium">
+                No hay hembras activas de esta especie.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -211,7 +253,6 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
                   onChange={(e) => setMaleId(e.target.value)}
                   className="w-full bg-white border border-black/5 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:border-[var(--brand)]"
                 >
-                  <option value="">Sin macho registrado</option>
                   {malesFiltered.map((a) => (
                     <option key={a.id} value={a.id}>
                       {labelAnimal(a)}

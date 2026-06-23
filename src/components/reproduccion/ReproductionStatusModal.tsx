@@ -4,10 +4,8 @@ import React, { useEffect, useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import { createClient } from '@/utils/supabase/client';
 import { SupabaseReproductionRepository } from '@/repositories/supabase/ReproductionRepository';
-import type {
-  ReproductiveEventWithRelations,
-  ReproductiveResultEnum,
-} from '@/types/domain/reproduction.schema';
+import type { ReproductiveEventWithRelations } from '@/types/domain/reproduction.schema';
+import type { GestationStatus } from '@/types/domain/reproduction.schema';
 import { Loader2 } from 'lucide-react';
 
 interface ReproductionStatusModalProps {
@@ -18,8 +16,8 @@ interface ReproductionStatusModalProps {
 }
 
 function crossTitle(ev: ReproductiveEventWithRelations) {
-  const f = ev.animal?.code || 'Hembra';
-  const m = ev.father ? ev.father.code : ev.father_external || '—';
+  const f = ev.female_animal?.code || 'Hembra';
+  const m = ev.male_animal?.code ?? ev.father_external ?? '—';
   return `${f} × ${m}`;
 }
 
@@ -31,14 +29,16 @@ export default function ReproductionStatusModal({
 }: ReproductionStatusModalProps) {
   const [repo] = useState(() => new SupabaseReproductionRepository(createClient()));
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>('pendiente');
-  const [estimatedBirthDate, setEstimatedBirthDate] = useState('');
+  const [gestationStatus, setGestationStatus] = useState<GestationStatus>('en_seguimiento');
+  const [failureReason, setFailureReason] = useState('');
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (!event) return;
-    setResult(event.result || 'pendiente');
-    setEstimatedBirthDate(event.estimated_delivery_date?.slice(0, 10) ?? '');
+    setGestationStatus(event.gestation_status ?? 'en_seguimiento');
+    setEstimatedDeliveryDate(event.estimated_delivery_date?.slice(0, 10) ?? '');
+    setFailureReason('');
     setNotes(event.notes ?? '');
   }, [event]);
 
@@ -48,14 +48,11 @@ export default function ReproductionStatusModal({
     e.preventDefault();
     try {
       setLoading(true);
-      
-      const payload: any = {
-        result: result,
-        estimated_delivery_date: estimatedBirthDate.trim() || null,
-        notes: notes.trim() || null,
-      };
-
-      await repo.updateEvent(event.id, payload);
+      await repo.update(event.id, {
+        gestation_status: gestationStatus,
+        failure_reason: gestationStatus === 'fallida' ? failureReason.trim() || null : null,
+        estimated_delivery_date: estimatedDeliveryDate.trim() || null,
+      });
       onSuccess();
       onClose();
     } catch (err) {
@@ -66,30 +63,46 @@ export default function ReproductionStatusModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Actualizar Resultado" maxWidth="max-w-lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Actualizar estado de gestación" maxWidth="max-w-lg">
       <div className="mb-5 rounded-xl bg-gray-50 border border-black/5 px-4 py-3">
-        <p className="text-xs font-extrabold text-gray-400 uppercase tracking-widest">Evento</p>
+        <p className="text-xs font-extrabold text-gray-400 uppercase tracking-widest">Cruce</p>
         <p className="font-black text-gray-900">{crossTitle(event)}</p>
         <p className="text-xs text-gray-500 mt-1">
-          Fecha: {event.event_date} · Tipo: {event.event_type}
+          Fecha: {event.event_date} · Tipo: {event.event_type === 'monta_natural' ? 'Monta natural' : 'Inseminación artificial'}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
-            Resultado *
+            Estado de gestación *
           </label>
           <select
-            value={result}
-            onChange={(e) => setResult(e.target.value)}
+            value={gestationStatus}
+            onChange={(e) => setGestationStatus(e.target.value as GestationStatus)}
             className="w-full bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-[var(--brand)]"
           >
-            <option value="pendiente">Pendiente</option>
-            <option value="positivo">Positivo (Confirmado)</option>
-            <option value="negativo">Negativo (Fallido)</option>
+            <option value="en_seguimiento">En seguimiento</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="fallida">Fallida</option>
+            <option value="parto_exitoso">Parto exitoso</option>
           </select>
         </div>
+
+        {gestationStatus === 'fallida' && (
+          <div>
+            <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
+              Motivo del fallo
+            </label>
+            <input
+              type="text"
+              value={failureReason}
+              onChange={(e) => setFailureReason(e.target.value)}
+              placeholder="Ej. Aborto espontáneo, enfermedad..."
+              className="w-full bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:border-[var(--brand)]"
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
@@ -97,23 +110,23 @@ export default function ReproductionStatusModal({
           </label>
           <input
             type="date"
-            value={estimatedBirthDate}
-            onChange={(e) => setEstimatedBirthDate(e.target.value)}
+            value={estimatedDeliveryDate}
+            onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
             className="w-full bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:border-[var(--brand)]"
           />
         </div>
 
         <div>
-           <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
-             Notas / Observaciones
-           </label>
-           <textarea
-             value={notes}
-             onChange={(e) => setNotes(e.target.value)}
-             rows={3}
-             className="w-full bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:border-[var(--brand)]"
-           />
-         </div>
+          <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
+            Notas / Observaciones
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            className="w-full bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:border-[var(--brand)]"
+          />
+        </div>
 
         <div className="flex justify-end gap-3 pt-2">
           <button

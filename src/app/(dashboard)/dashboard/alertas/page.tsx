@@ -131,17 +131,17 @@ export default function AlertasPage() {
       // Partos próximos (≤ 30 días) o atrasados, solo gestaciones activas
       const births: BirthAlert[] = [];
       for (const ev of reproEvents as ReproductiveEventWithRelations[]) {
-        const estDate = ev.estimated_birth_date ?? ev.estimated_delivery_date;
+        const estDate = ev.estimated_delivery_date;
         if (!estDate) continue;
         if (!['en_seguimiento', 'confirmada'].includes(ev.gestation_status ?? '')) continue;
         const daysUntil = Math.round(
           (new Date(estDate).getTime() - today.getTime()) / 86_400_000
         );
         if (daysUntil > 30) continue; // Solo los próximos/atrasados
-        const nickname = extractNickname(ev.female_animal?.name ?? ev.animal?.notes);
+        const nickname = extractNickname(ev.female_animal?.name);
         births.push({
           id: ev.id,
-          female_code: ev.female_animal?.code ?? ev.animal?.code ?? '—',
+          female_code: ev.female_animal?.code ?? '—',
           female_name: nickname,
           estimated_birth_date: estDate,
           daysUntil,
@@ -267,8 +267,8 @@ export default function AlertasPage() {
                     key={t}
                     onClick={() => setActiveType(t)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${activeType === t
-                        ? 'bg-[var(--brand)] text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'bg-[var(--brand)] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                   >
                     {{ all: 'Todas', vacunacion: 'Vacunación', salud: 'Salud', inventario: 'Inventario', reproduccion: 'Reproducción' }[t]}

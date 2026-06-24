@@ -181,9 +181,12 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
         ? payload.breed_id
         : null;
 
-    const nameTrim = payload.name?.trim() || null;
-    const notesTrim = payload.notes?.trim() || null;
-    const combinedNotes = notesTrim || null;
+    const nameTrim = payload.name?.trim();
+    const notesTrim = payload.notes?.trim();
+    const noteLines: string[] = [];
+    if (nameTrim) noteLines.push(`Apodo: ${nameTrim}`);
+    if (notesTrim) noteLines.push(notesTrim);
+    const combinedNotes = noteLines.length ? noteLines.join('\n\n') : null;
 
     // Obtener información del perfil del usuario
     const { data: profile } = await this.supabase
@@ -233,6 +236,15 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
   }
 
   async update(id: string, payload: Partial<Animal>): Promise<Animal> {
+    // Obtener usuario actual
+    const { data: { user } } = await this.supabase.auth.getUser();
+
+    if (user) {
+      // Agregar información de quién actualizó
+      (payload as any).updated_by = user.id;
+      (payload as any).updated_at = new Date().toISOString();
+    }
+
     const { data, error } = await this.supabase
       .from('animals')
       .update(payload)
@@ -248,10 +260,7 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
   }
 
   async changeStatus(id: string, newStatus: Animal['status'], notes?: string): Promise<Animal> {
-    const updateData: Partial<Animal> = {
-      status: newStatus
-    };
-
+    const updateData: Partial<Animal> = { status: newStatus };
     if (newStatus === 'descartado' || newStatus === 'vendido' || newStatus === 'muerto') {
       (updateData as any).egress_date = new Date().toISOString();
       if (notes) (updateData as any).egress_notes = notes;

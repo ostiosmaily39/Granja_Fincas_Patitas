@@ -43,6 +43,7 @@ export const ReproductiveEventSchema = z.object({
   event_date: z.string(),
   gestation_status: GestationStatusEnum.optional(),
   estimated_delivery_date: z.string().nullable().optional(),
+  estimated_delivery_date_to: z.string().nullable().optional(),
   responsible: z.string().optional(),
   registered_by: z.string().uuid().optional(),
   notes: z.string().nullable().optional(),
@@ -84,6 +85,7 @@ export const UpdateGestationStatusSchema = z.object({
   gestation_status: GestationStatusEnum,
   failure_reason: z.string().nullable().optional(),
   estimated_delivery_date: z.string().nullable().optional(),
+  estimated_delivery_date_to: z.string().nullable().optional(),
 });
 
 export type UpdateGestationStatusDTO = z.infer<typeof UpdateGestationStatusSchema>;

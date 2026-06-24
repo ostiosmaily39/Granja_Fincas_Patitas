@@ -34,6 +34,7 @@ function rowToEvent(r: Record<string, unknown>): ReproductiveEvent {
     event_date: String(r.event_date),
     gestation_status: (r[REPRO_COLS.status] as any) ?? undefined,
     estimated_delivery_date: r[REPRO_COLS.estimated] ? String(r[REPRO_COLS.estimated]) : null,
+    estimated_delivery_date_to: r.estimated_delivery_date_to ? String(r.estimated_delivery_date_to) : null,
     responsible: r[REPRO_COLS.responsible] ? String(r[REPRO_COLS.responsible]) : undefined,
     registered_by: r[REPRO_COLS.registeredBy] ? String(r[REPRO_COLS.registeredBy]) : undefined,
     notes: (r.notes as string | null) ?? null,
@@ -194,6 +195,9 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
 
     if (input.estimated_delivery_date !== undefined) {
       patch[REPRO_COLS.estimated] = input.estimated_delivery_date?.trim() || null;
+    }
+    if (input.estimated_delivery_date_to !== undefined) {
+      patch['estimated_delivery_date_to'] = input.estimated_delivery_date_to?.trim() || null;
     }
 
     const { data, error } = await this.supabase

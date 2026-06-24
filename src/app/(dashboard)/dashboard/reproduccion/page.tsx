@@ -170,7 +170,18 @@ export default function ReproduccionPage() {
     {
       key: 'est',
       header: 'Parto estimado',
-      render: (r) => <span className="font-medium text-gray-600">{formatDate(r.estimated_delivery_date)}</span>,
+      render: (r) => {
+        const from = formatDate(r.estimated_delivery_date);
+        const to = formatDate((r as any).estimated_delivery_date_to);
+        if (from === '—') return <span className="font-medium text-gray-400">—</span>;
+        if (to === '—') return <span className="font-medium text-gray-600">{from}</span>;
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium text-gray-600 text-xs">{from}</span>
+            <span className="text-[10px] text-gray-400 font-bold">→ {to}</span>
+          </div>
+        );
+      },
     },
     {
       key: 'status',

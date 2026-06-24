@@ -78,7 +78,7 @@ export default function ReproductionStatusModal({
         <p className="text-xs font-extrabold text-gray-400 uppercase tracking-widest">Cruce</p>
         <p className="font-black text-gray-900">{crossTitle(event)}</p>
         <p className="text-xs text-gray-500 mt-1">
-          Fecha: {event.event_date} · Tipo: {event.event_type === 'monta_natural' ? 'Monta natural' : 'Inseminación artificial'}
+          Fecha: {new Date(event.event_date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })} · Tipo: {event.event_type === 'monta_natural' ? 'Monta natural' : 'Inseminación artificial'}
         </p>
       </div>
 

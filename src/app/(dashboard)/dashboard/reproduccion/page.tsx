@@ -36,9 +36,14 @@ function resultingBreed(ev: ReproductiveEventWithRelations) {
 
 function crossTitle(ev: ReproductiveEventWithRelations) {
   const f = ev.female_animal?.name?.trim() || ev.female_animal?.code || 'Hembra';
-  const m = ev.male_animal
-    ? ev.male_animal.name?.trim() || ev.male_animal.code
-    : ev.father_external?.trim() || '—';
+  let m: string;
+  if (ev.male_animal) {
+    m = ev.male_animal.name?.trim() || ev.male_animal.code;
+  } else if (ev.father_external?.trim()) {
+    m = ev.father_external.trim();
+  } else {
+    m = 'Sin padre registrado';
+  }
   return `${f} × ${m}`;
 }
 

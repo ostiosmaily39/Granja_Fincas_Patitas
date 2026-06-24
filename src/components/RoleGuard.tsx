@@ -6,6 +6,7 @@ import { Rol } from '@/types/domain/user.schema';
 import { useRouter } from 'next/navigation';
 import { ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
+import { hasAnyRole } from '@/lib/role-utils';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -26,10 +27,8 @@ export function RoleGuard({
 }: RoleGuardProps) {
   const { role, loading } = useAuth();
   const router = useRouter();
-  
-  // Normalizar para comparación robusta
-  const userRole = role?.toUpperCase().trim();
-  const hasAccess = userRole ? allowedRoles.some(r => r.toUpperCase() === userRole) : false;
+
+  const hasAccess = hasAnyRole(role, allowedRoles);
 
   useEffect(() => {
     // Evitar redirecciones innecesarias o bucles

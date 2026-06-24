@@ -20,25 +20,21 @@ export default function MilkProductionPage() {
   const [records, setRecords] = useState<MilkProductionRecord[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  // ── Filtros ──
   const [search, setSearch] = useState('');
   const [shift, setShift] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  // Debounce search
   const [debouncedSearch, setDebouncedSearch] = useState('');
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  // Cargar vacas una vez
   useEffect(() => {
     getCows().then(r => setCows(r.data ?? []));
   }, []);
 
-  // Cargar historial cuando cambian filtros
   const loadRecords = useCallback(() => {
     const filters: MilkRecordFilters = {
       search: debouncedSearch || undefined,
@@ -55,6 +51,25 @@ export default function MilkProductionPage() {
   useEffect(() => { loadRecords(); }, [loadRecords]);
 
   const totalLiters = records.reduce((sum, r) => sum + (r.quantity_liters ?? 0), 0);
+
+  const downloadCSV = () => {
+    const headers = ['Fecha', 'Turno', 'Vaca', 'Código', 'Litros'];
+    const rows = records.map(r => [
+      new Date(r.date).toLocaleDateString('es-CO'),
+      r.shift,
+      (r.animal as any)?.notes || 'Animal (sin apodo)',
+      (r.animal as any)?.code || '',
+      r.quantity_liters,
+    ]);
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `historial-leche-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto flex flex-col gap-8 animate-in fade-in duration-500">
@@ -89,14 +104,22 @@ export default function MilkProductionPage() {
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <History className="w-5 h-5 text-gray-400" /> Historial Reciente
             </h3>
-            <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold">
-              {records.length} registros
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={downloadCSV}
+                disabled={records.length === 0}
+                className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ↓ Exportar CSV
+              </button>
+              <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-bold">
+                {records.length} registros
+              </span>
+            </div>
           </div>
 
-          {/* ── Panel de filtros ── */}
+          {/* Panel de filtros */}
           <div className="bg-gray-50 rounded-2xl p-4 space-y-3 border border-black/5">
-            {/* Fila 1: búsqueda + turno */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
@@ -119,7 +142,6 @@ export default function MilkProductionPage() {
               </select>
             </div>
 
-            {/* Fila 2: fechas + KPI */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 flex-1 min-w-[200px]">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Desde</label>
@@ -137,16 +159,14 @@ export default function MilkProductionPage() {
                   className="flex-1 bg-white border border-black/5 rounded-xl px-3 py-2 text-sm font-medium text-gray-700 outline-none focus:border-[var(--brand)] transition-colors"
                 />
               </div>
-              {/* KPI total */}
               <div className="flex flex-col items-end ml-auto">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total litros</span>
                 <span className="text-xl font-black text-blue-600 leading-none mt-0.5">
-                  {isPending ? '—' : totalLiters.toFixed(1)} L
+                  {isPending ? '–' : totalLiters.toFixed(1)} L
                 </span>
               </div>
             </div>
 
-            {/* Limpiar filtros */}
             {(search || shift !== 'all' || dateFrom || dateTo) && (
               <button
                 onClick={() => { setSearch(''); setShift('all'); setDateFrom(''); setDateTo(''); }}
@@ -168,52 +188,52 @@ export default function MilkProductionPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-  {isPending ? (
-    <tr>
-      <td colSpan={3} className="px-5 py-12 text-center">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
-      </td>
-    </tr>
-  ) : records.length === 0 ? (
-    <tr>
-      <td colSpan={3} className="px-5 py-12 text-center text-gray-500 font-medium">
-        No hay registros con estos filtros.
-      </td>
-    </tr>
-  ) : records.map(record => (
-    <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
-      <td className="px-5 py-4">
-        <div className="flex flex-col gap-1">
-          {/* Badge del creador */}
-          <CreatorBadge 
-            creatorName={(record as any).created_by_name}
-            creatorRole={(record as any).created_by_role}
-            createdAt={record.created_at}
-          />
-          
-          {/* Fecha */}
-          <div className="font-bold text-gray-900">
-            {new Date(record.production_date).toLocaleDateString('es-CO')}
-          </div>
-          <div className="text-xs text-gray-500 font-medium bg-gray-100 inline-block px-2 py-0.5 rounded mt-1 capitalize">
-            {record.shift}
-          </div>
-        </div>
-      </td>
-      <td className="px-5 py-4 font-medium text-gray-800">
-        {(record.animal as any)?.notes || 'Animal (sin apodo)'}
-        <span className="block text-xs text-gray-400">
-          Código: {(record.animal as any)?.code}
-        </span>
-      </td>
-      <td className="px-5 py-4 text-right">
-        <span className="font-extrabold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">
-          {record.quantity_liters} L
-        </span>
-      </td>
-    </tr>
-  ))}
-</tbody>
+                {isPending ? (
+                  <tr>
+                    <td colSpan={3} className="px-5 py-12 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
+                    </td>
+                  </tr>
+                ) : records.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-5 py-12 text-center text-gray-500 font-medium">
+                      No hay registros con estos filtros.
+                    </td>
+                  </tr>
+                ) : records.map(record => (
+                  <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col gap-1">
+                        {/* Badge del creador */}
+                        <CreatorBadge
+                          creatorName={(record as any).created_by_name}
+                          creatorRole={(record as any).created_by_role}
+                          createdAt={record.created_at}
+                        />
+
+                        {/* Fecha */}
+                        <div className="font-bold text-gray-900">
+                          {new Date(record.production_date).toLocaleDateString('es-CO')}
+                        </div>
+                        <div className="text-xs text-gray-500 font-medium bg-gray-100 inline-block px-2 py-0.5 rounded mt-1 capitalize">
+                          {record.shift}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 font-medium text-gray-800">
+                      {(record.animal as any)?.notes || 'Animal (sin apodo)'}
+                      <span className="block text-xs text-gray-400">
+                        Código: {(record.animal as any)?.code}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <span className="font-extrabold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">
+                        {record.quantity_liters} L
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </div>

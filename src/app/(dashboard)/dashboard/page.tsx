@@ -6,6 +6,7 @@ import AdminDashboard from './AdminDashboard';
 import EmpleadoDashboard from './EmpleadoDashboard';
 import NotificationBanner from '@/components/notifications/NotificationBanner';
 import { Loader2 } from 'lucide-react';
+import { isAdministrator } from '@/lib/role-utils';
 
 export default function DashboardPage() {
   const { role, loading } = useAuth();
@@ -21,7 +22,7 @@ export default function DashboardPage() {
   return (
     <>
       <NotificationBanner />
-      
+
       {role === 'ADMINISTRADOR' ? <AdminDashboard /> : <EmpleadoDashboard />}
     </>
   );

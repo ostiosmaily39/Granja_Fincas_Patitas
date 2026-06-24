@@ -11,6 +11,8 @@ import {
   toDbHealthStatus,
   toDbReproductiveStatus,
   toDbVaccinationStatus,
+  toDbAnimalStatus,
+  toDbEgressReason,
   type DbAnimalOrigin,
 } from '@/lib/animals-db-map';
 
@@ -77,7 +79,6 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
       query = query.eq('species_id', species);
     }
 
-    // ✅ CORRECCIÓN: Convertir el valor del frontend al formato de la base de datos
     if (healthStatus && healthStatus !== 'all') {
       const dbHealthStatus = toDbHealthStatus(healthStatus);
       query = query.eq('health_status', dbHealthStatus);
@@ -155,7 +156,7 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
       throw new Error('Especie no encontrada o error de base de datos.');
     }
 
-    const origin: DbAnimalOrigin = payload.origin ?? 'adquirido_externo';
+    const origin: DbAnimalOrigin = (payload.origin ?? 'adquirido_externo') as DbAnimalOrigin;
 
     const birthDate = payload.birth_date?.trim() || null;
     let acquisitionDate = payload.acquisition_date?.trim() || null;
@@ -180,46 +181,43 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
         ? payload.breed_id
         : null;
 
-    const nameTrim = payload.name?.trim();
-    const notesTrim = payload.notes?.trim();
-    const noteLines: string[] = [];
-    if (nameTrim) noteLines.push(`Apodo: ${nameTrim}`);
-    if (notesTrim) noteLines.push(notesTrim);
-    const combinedNotes = noteLines.length ? noteLines.join('\n\n') : null;
+    const nameTrim = payload.name?.trim() || null;
+    const notesTrim = payload.notes?.trim() || null;
+    const combinedNotes = notesTrim || null;
 
     // Obtener información del perfil del usuario
-const { data: profile } = await this.supabase
-  .from('profiles')
-  .select('full_name, role')
-  .eq('id', user.id)
-  .single();
+    const { data: profile } = await this.supabase
+      .from('profiles')
+      .select('full_name, role')
+      .eq('id', user.id)
+      .single();
 
-const animalToInsert: Record<string, unknown> = {
-  species_id: payload.species_id,
-  breed_id: breedId,
-  sex: payload.sex,
-  birth_date: birthDate,
-  acquisition_date: acquisitionDate,
-  origin,
-  initial_weight_kg: initialWeight,
-  current_weight_kg: currentWeight,
-  status: 'activo',
-  health_status: toDbHealthStatus(payload.health_status),
-  reproductive_status: toDbReproductiveStatus(
-    payload.reproductive_status,
-    payload.sex
-  ),
-  vaccination_status: toDbVaccinationStatus(payload.vaccination_status),
-  mother_id: payload.mother_id ?? null,
-  father_id: payload.father_id ?? null,
-  father_external: payload.father_external?.trim() || null,
-  notes: combinedNotes,
-  registered_by: user.id,
-  // Campos de auditoría
-  created_by: user.id,
-  created_by_role: profile?.role || 'EMPLEADO',
-  created_by_name: profile?.full_name || user.email,
-};
+    const animalToInsert: Record<string, unknown> = {
+      species_id: payload.species_id,
+      breed_id: breedId,
+      sex: payload.sex,
+      birth_date: birthDate,
+      acquisition_date: acquisitionDate,
+      origin,
+      initial_weight_kg: initialWeight,
+      current_weight_kg: currentWeight,
+      status: 'activo',
+      health_status: toDbHealthStatus(payload.health_status),
+      reproductive_status: toDbReproductiveStatus(
+        payload.reproductive_status,
+        payload.sex
+      ),
+      vaccination_status: toDbVaccinationStatus(payload.vaccination_status),
+      mother_id: payload.mother_id ?? null,
+      father_id: payload.father_id ?? null,
+      father_external: payload.father_external?.trim() || null,
+      notes: combinedNotes,
+      registered_by: user.id,
+      // Campos de auditoría
+      created_by: user.id,
+      created_by_role: profile?.role || 'EMPLEADO',
+      created_by_name: profile?.full_name || user.email,
+    };
 
     const { data, error } = await this.supabase
       .from('animals')
@@ -235,34 +233,28 @@ const animalToInsert: Record<string, unknown> = {
   }
 
   async update(id: string, payload: Partial<Animal>): Promise<Animal> {
-  // Obtener usuario actual
-  const { data: { user } } = await this.supabase.auth.getUser();
-  
-  if (user) {
-    // Agregar información de quién actualizó
-    (payload as any).updated_by = user.id;
-    (payload as any).updated_at = new Date().toISOString();
+    const { data, error } = await this.supabase
+      .from('animals')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Error al actualizar el animal: ${error.message}`);
+    }
+
+    return data as Animal;
   }
-
-  const { data, error } = await this.supabase
-    .from('animals')
-    .update(payload)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Error al actualizar el animal: ${error.message}`);
-  }
-
-  return data as Animal;
-}
 
   async changeStatus(id: string, newStatus: Animal['status'], notes?: string): Promise<Animal> {
-    const updateData: Partial<Animal> = { status: newStatus };
+    const updateData: Partial<Animal> = {
+      status: newStatus
+    };
+
     if (newStatus === 'descartado' || newStatus === 'vendido' || newStatus === 'muerto') {
-      updateData.egress_date = new Date().toISOString();
-      if (notes) updateData.egress_notes = notes;
+      (updateData as any).egress_date = new Date().toISOString();
+      if (notes) (updateData as any).egress_notes = notes;
     }
 
     return this.update(id, updateData);

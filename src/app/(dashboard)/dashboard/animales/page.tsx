@@ -93,19 +93,15 @@ export default function AnimalesPage() {
         const filtered = allAnimals.filter(animal => {
           const searchLower = searchText.toLowerCase().trim();
 
-          // Extraer apodo
-          const nickname = extractNickname(animal.notes);
-
-          // Buscar en múltiples campos
+          // ✅ Buscar en name (ya no en nickname)
           const matchesName = animal.name?.toLowerCase().includes(searchLower) || false;
-          const matchesNickname = nickname ? nickname.toLowerCase().includes(searchLower) : false;
           const matchesCode = animal.code?.toLowerCase().includes(searchLower) || false;
           const matchesSpecies = animal.species?.name?.toLowerCase().includes(searchLower) || false;
           const matchesSpeciesDisplay = animal.species?.display_name?.toLowerCase().includes(searchLower) || false;
           const matchesBreed = animal.breed?.name?.toLowerCase().includes(searchLower) || false;
           const matchesNotes = animal.notes?.toLowerCase().includes(searchLower) || false;
 
-          return matchesName || matchesNickname || matchesCode || matchesSpecies || matchesSpeciesDisplay || matchesBreed || matchesNotes;
+          return matchesName || matchesCode || matchesSpecies || matchesSpeciesDisplay || matchesBreed || matchesNotes;
         });
 
         // Aplicar paginación manual
@@ -183,13 +179,12 @@ export default function AnimalesPage() {
 
   const handleExport = (format: 'csv' | 'excel') => {
     // Crear CSV
-    const headers = ['ID', 'Apodo', 'Código', 'Especie', 'Raza', 'Sexo', 'Fecha Nacimiento', 'Estado Salud', 'Vacunación', 'Estado'];
+    const headers = ['ID', 'Nombre', 'Código', 'Especie', 'Raza', 'Sexo', 'Fecha Nacimiento', 'Estado Salud', 'Vacunación', 'Estado'];
     const rows = animals.map(a => {
-      const nickname = extractNickname(a.notes);
       return [
         a.id,
-        nickname ?? a.name ?? '',
-        a.code ?? '',
+        a.name || '',
+        a.code || '',
         a.species?.display_name ?? '',
         a.breed?.name ?? '',
         a.sex,
@@ -218,39 +213,39 @@ export default function AnimalesPage() {
 
   const columns: Column<AnimalWithRelations>[] = [
     {
-  key: 'name',
-  header: 'Identificación',
-  sortable: true,
-  render: (a) => {
-    const nickname = extractNickname(a.notes);
+      key: 'name',
+      header: 'Identificación',
+      sortable: true,
+      render: (a) => {
+        const nickname = extractNickname(a.notes);
 
-    return (
-      <div className="flex flex-col gap-2">
-        {/* Badge del creador - ARRIBA A LA IZQUIERDA */}
-        <CreatorBadge 
-          creatorName={(a as any).created_by_name}
-          creatorRole={(a as any).created_by_role}
-          createdAt={a.created_at}
-        />
-        
-        {/* Apodo/Nombre del animal */}
-        {nickname && nickname.length > 0 ? (
-          <span className="font-extrabold text-gray-900 text-base capitalize">
-            {nickname}
-          </span>
-        ) : (
-          <span className="text-sm font-bold text-gray-400 italic">
-            Sin apodo
-          </span>
-        )}
-        {/* Código del animal */}
-        <span className="text-xs font-bold text-[var(--brand)] font-mono">
-          {a.code}
-        </span>
-      </div>
-    );
-  }
-},
+        return (
+          <div className="flex flex-col gap-2">
+            {/* Badge del creador - ARRIBA A LA IZQUIERDA */}
+            <CreatorBadge
+              creatorName={(a as any).created_by_name}
+              creatorRole={(a as any).created_by_role}
+              createdAt={a.created_at}
+            />
+
+            {/* Apodo/Nombre del animal */}
+            {nickname && nickname.length > 0 ? (
+              <span className="font-extrabold text-gray-900 text-base capitalize">
+                {nickname}
+              </span>
+            ) : (
+              <span className="text-sm font-bold text-gray-400 italic">
+                Sin apodo
+              </span>
+            )}
+            {/* Código del animal */}
+            <span className="text-xs font-bold text-[var(--brand)] font-mono">
+              {a.code}
+            </span>
+          </div>
+        );
+      }
+    },
     {
       key: 'species',
       header: 'Especie / Raza',
@@ -359,7 +354,7 @@ export default function AnimalesPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Buscar por apodo, código o especie..."
+                placeholder="Buscar por nombre, código o especie..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-black/5 rounded-xl font-medium text-gray-700 outline-none focus:border-[var(--brand)] transition-colors"

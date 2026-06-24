@@ -45,6 +45,14 @@ export class SupabaseHealthRepository implements IHealthRepository {
     if (filter?.toDate) {
       q = q.lte('event_date', `${filter.toDate}T23:59:59.999Z`);
     }
+    if (filter?.search?.trim()) {
+      const term = filter.search.trim();
+      q = q.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
+    }
+
+    const limit = filter?.limit ?? 100;
+    const offset = filter?.offset ?? 0;
+    q = q.range(offset, offset + limit - 1);
 
     const { data, error } = await q;
     if (error) throw new Error(`Error al cargar historial integral: ${error.message}`);

@@ -13,7 +13,6 @@ export default function EggProductionPage() {
   const [records, setRecords] = useState<EggProductionRecord[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  // ── Filtros ──
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -24,12 +23,10 @@ export default function EggProductionPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  // Cargar lotes una vez
   useEffect(() => {
     getChickenBatches().then(r => setBatches(r.data ?? []));
   }, []);
 
-  // Cargar historial cuando cambian filtros
   const loadRecords = useCallback(() => {
     const filters: EggRecordFilters = {
       search: debouncedSearch || undefined,
@@ -44,8 +41,26 @@ export default function EggProductionPage() {
 
   useEffect(() => { loadRecords(); }, [loadRecords]);
 
-  const totalUnits = records.reduce((s, r) => s + (r.quantity_units ?? 0), 0);
-  const totalDiscarded = records.reduce((s, r) => s + (r.discarded_units ?? 0), 0);
+  const totalUnits = records.reduce((s, r) => s + (r.total_quantity ?? 0), 0);
+  const totalDiscarded = records.reduce((s, r) => s + (r.damaged_quantity ?? 0), 0);
+
+  const downloadCSV = () => {
+    const headers = ['Fecha', 'Lote', 'Huevos Totales', 'Descartados'];
+    const rows = records.map(r => [
+      new Date(r.date).toLocaleDateString('es-CO'),
+      r.batch_id || 'Lote Desconocido',
+      r.total_quantity,
+      r.damaged_quantity ?? 0,
+    ]);
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `historial-huevos-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto flex flex-col gap-8 animate-in fade-in duration-500">
@@ -80,14 +95,22 @@ export default function EggProductionPage() {
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <History className="w-5 h-5 text-gray-400" /> Historial Reciente
             </h3>
-            <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-lg text-xs font-bold">
-              {records.length} registros
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={downloadCSV}
+                disabled={records.length === 0}
+                className="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 px-3 py-1 rounded-lg text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ↓ Exportar CSV
+              </button>
+              <span className="bg-amber-50 text-amber-600 px-3 py-1 rounded-lg text-xs font-bold">
+                {records.length} registros
+              </span>
+            </div>
           </div>
 
-          {/* ── Panel de filtros ── */}
+          {/* Panel de filtros */}
           <div className="bg-gray-50 rounded-2xl p-4 space-y-3 border border-black/5">
-            {/* Fila 1: búsqueda por lote */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
               <input
@@ -99,7 +122,6 @@ export default function EggProductionPage() {
               />
             </div>
 
-            {/* Fila 2: fechas + KPIs */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 flex-1 min-w-[180px]">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Desde</label>
@@ -119,7 +141,6 @@ export default function EggProductionPage() {
               </div>
             </div>
 
-            {/* KPIs */}
             <div className="flex items-center gap-6 pt-1 border-t border-gray-200">
               <div className="flex flex-col">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total huevos</span>
@@ -136,7 +157,6 @@ export default function EggProductionPage() {
               </div>
             </div>
 
-            {/* Limpiar */}
             {(search || dateFrom || dateTo) && (
               <button
                 onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); }}
@@ -158,53 +178,53 @@ export default function EggProductionPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-  {isPending ? (
-    <tr>
-      <td colSpan={3} className="px-5 py-12 text-center">
-        <Loader2 className="w-6 h-6 animate-spin text-amber-400 mx-auto" />
-      </td>
-    </tr>
-  ) : records.length === 0 ? (
-    <tr>
-      <td colSpan={3} className="px-5 py-12 text-center text-gray-500 font-medium">
-        No hay registros con estos filtros.
-      </td>
-    </tr>
-  ) : records.map(record => (
-    <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
-      <td className="px-5 py-4">
-        <div className="flex flex-col gap-1">
-          {/* Badge del creador */}
-          <CreatorBadge 
-            creatorName={(record as any).created_by_name}
-            creatorRole={(record as any).created_by_role}
-            createdAt={record.created_at}
-          />
-          
-          {/* Fecha */}
-          <div className="font-bold text-gray-900">
-            {new Date(record.production_date).toLocaleDateString('es-CO')}
-          </div>
-        </div>
-      </td>
-      <td className="px-5 py-4 font-medium text-gray-800">
-        {record.lot_name || 'Lote Desconocido'}
-      </td>
-      <td className="px-5 py-4 text-right">
-        <div className="flex flex-col items-end gap-1">
-          <span className="font-extrabold text-amber-600 bg-amber-50 px-3 py-1 rounded-lg">
-            {record.quantity_units} Ud
-          </span>
-          {(record.discarded_units ?? 0) > 0 && (
-            <span className="text-xs text-red-500 font-bold">
-              -{record.discarded_units} rotos
-            </span>
-          )}
-        </div>
-      </td>
-    </tr>
-  ))}
-</tbody>
+                {isPending ? (
+                  <tr>
+                    <td colSpan={3} className="px-5 py-12 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-amber-400 mx-auto" />
+                    </td>
+                  </tr>
+                ) : records.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-5 py-12 text-center text-gray-500 font-medium">
+                      No hay registros con estos filtros.
+                    </td>
+                  </tr>
+                ) : records.map(record => (
+                  <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col gap-1">
+                        {/* Badge del creador */}
+                        <CreatorBadge
+                          creatorName={(record as any).created_by_name}
+                          creatorRole={(record as any).created_by_role}
+                          createdAt={record.created_at}
+                        />
+
+                        {/* Fecha */}
+                        <div className="font-bold text-gray-900">
+                          {new Date(record.production_date).toLocaleDateString('es-CO')}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 font-medium text-gray-800">
+                      {record.lot_name || 'Lote Desconocido'}
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="font-extrabold text-amber-600 bg-amber-50 px-3 py-1 rounded-lg">
+                          {record.quantity_units} Ud
+                        </span>
+                        {(record.discarded_units ?? 0) > 0 && (
+                          <span className="text-xs text-red-500 font-bold">
+                            -{record.discarded_units} rotos
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </div>

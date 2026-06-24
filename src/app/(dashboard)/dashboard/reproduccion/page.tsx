@@ -7,8 +7,9 @@ import DataTable, { Column } from '@/components/ui/DataTable';
 import Badge from '@/components/ui/Badge';
 import ReproductionEventModal from '@/components/reproduccion/ReproductionEventModal';
 import ReproductionStatusModal from '@/components/reproduccion/ReproductionStatusModal';
-import { Sprout, CheckCircle2, XCircle, Clock, Plus, Pencil, Loader2, Search } from 'lucide-react';
+import { Sprout, CheckCircle2, XCircle, Clock, Plus, Pencil, Loader2, Search, Trash2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { useUserRole } from '@/hooks/useUserRole';
 import { SupabaseReproductionRepository } from '@/repositories/supabase/ReproductionRepository';
 import type {
   GestationStatus,
@@ -69,6 +70,9 @@ function getStatusBadge(status: GestationStatus) {
 
 export default function ReproduccionPage() {
   const [repo] = useState(() => new SupabaseReproductionRepository(createClient()));
+  const userRole = useUserRole();
+  const isAdmin = userRole === 'ADMINISTRADOR';
+
   const [rows, setRows] = useState<ReproductiveEventWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,9 +110,22 @@ export default function ReproduccionPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const handleDelete = useCallback(async (id: string) => {
+    if (!confirm('¿Eliminar este cruce? Esta acción no se puede deshacer.')) return;
+    try {
+      const res = await fetch(`/api/reproduction/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error);
+      }
+      await load();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  }, [load]);
+
   const filtered = useMemo(() => {
     let result = rows;
-
     if (filterStatus !== 'todas') {
       result = result.filter(r => r.gestation_status === filterStatus);
     }
@@ -131,7 +148,6 @@ export default function ReproduccionPage() {
   const completedCount = rows.filter(r => r.gestation_status === 'parto_exitoso').length;
   const inProgressCount = rows.filter(r => ['en_seguimiento', 'confirmada'].includes(r.gestation_status ?? '')).length;
   const failureCount = rows.filter(r => r.gestation_status === 'fallida').length;
-
   const hasActiveFilters = searchInput || filterStatus !== 'todas' || filterType !== 'all';
 
   const columns: Column<ReproductiveEventWithRelations>[] = [
@@ -196,15 +212,26 @@ export default function ReproduccionPage() {
     {
       key: 'actions',
       header: '',
-      className: 'w-28',
+      className: 'w-40',
       render: (r) => (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setStatusEvent(r); }}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-extrabold text-[var(--brand)] hover:bg-gray-50 transition-colors"
-        >
-          <Pencil size={14} /> Estado
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setStatusEvent(r); }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-extrabold text-[var(--brand)] hover:bg-gray-50 transition-colors"
+          >
+            <Pencil size={14} /> Estado
+          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-extrabold text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
       ),
     },
   ];

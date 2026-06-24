@@ -56,59 +56,76 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
   }
 
   async list(): Promise<ReproductiveEventWithRelations[]> {
-    const { data: rows, error } = await this.supabase
-      .from('reproductive_events')
-      .select('*')
-      .order('event_date', { ascending: false });
+  const { data: rows, error } = await this.supabase
+    .from('reproductive_events')
+    .select(`
+      *,
+      created_by,
+      created_by_name,
+      created_by_role,
+      created_at
+    `)
+    .order('event_date', { ascending: false });
 
-    if (error) throw new Error(`Error al cargar reproducción: ${error.message}`);
+  if (error) throw new Error(`Error al cargar reproducción: ${error.message}`);
 
-    const cols = await getReproEventAnimalColumnNames(this.supabase);
-    const events: ReproductiveEvent[] = [];
+  const cols = await getReproEventAnimalColumnNames(this.supabase);
+  const events: ReproductiveEvent[] = [];
 
-    for (const r of rows ?? []) {
-      try {
-        events.push(rowToReproductiveEvent(r as Record<string, unknown>, cols));
-      } catch (e) {
-        // Si hay un registro corrupto, lo saltamos para no romper toda la vista
-        console.error('Saltando registro reproductivo inválido:', e);
-      }
+  for (const r of rows ?? []) {
+    try {
+      events.push(rowToReproductiveEvent(r as Record<string, unknown>, cols));
+    } catch (e) {
+      console.error('Saltando registro reproductivo inválido:', e);
     }
-
-    const ids = new Set<string>();
-    for (const e of events) {
-      if (e.female_animal_id) ids.add(e.female_animal_id);
-      if (e.male_animal_id) ids.add(e.male_animal_id);
-    }
-
-    if (ids.size === 0) {
-      return events.map((row) => ({
-        ...row,
-        female_animal: null,
-        male_animal: null,
-      }));
-    }
-
-    const { data: animals, error: animalsError } = await this.supabase
-      .from('animals')
-      .select('id, code, name, species_id, breed:breed_id ( name )')
-      .in('id', [...ids]);
-
-    if (animalsError) throw new Error(`Error al cargar animales del cruce: ${animalsError.message}`);
-
-    const byId = new Map<string, ReproductiveAnimalMini>();
-    for (const a of animals ?? []) {
-      byId.set((a as any).id, {
-        id: a.id,
-        code: a.code,
-        name: a.name,
-        species_id: a.species_id,
-        breed: Array.isArray(a.breed) ? a.breed[0] : a.breed || null
-      } as ReproductiveAnimalMini);
-    }
-
-    return attachAnimals(events, byId);
   }
+
+  const ids = new Set<string>();
+  for (const e of events) {
+    if (e.female_animal_id) ids.add(e.female_animal_id);
+    if (e.male_animal_id) ids.add(e.male_animal_id);
+  }
+
+  if (ids.size === 0) {
+    return events.map((row) => ({
+      ...row,
+      female_animal: null,
+      male_animal: null,
+    }));
+  }
+
+  const { data: animals, error: animalsError } = await this.supabase
+    .from('animals')
+    .select('id, code, name, species_id, breed:breed_id ( name )')
+    .in('id', [...ids]);
+
+  if (animalsError) throw new Error(`Error al cargar animales del cruce: ${animalsError.message}`);
+
+  const byId = new Map<string, ReproductiveAnimalMini>();
+  for (const a of animals ?? []) {
+    byId.set((a as any).id, {
+      id: a.id,
+      code: a.code,
+      name: a.name,
+      species_id: a.species_id,
+      breed: Array.isArray(a.breed) ? a.breed[0] : a.breed || null
+    } as ReproductiveAnimalMini);
+  }
+
+  // Agregar campos de auditoría a los eventos
+  const eventsWithAudit = events.map((event, index) => {
+    const row = rows?.[index] as any;
+    return {
+      ...event,
+      created_by: row?.created_by,
+      created_by_name: row?.created_by_name,
+      created_by_role: row?.created_by_role,
+      created_at: row?.created_at,
+    };
+  });
+
+  return attachAnimals(eventsWithAudit, byId);
+}
 
   async create(payload: CreateReproductiveEventDTO): Promise<ReproductiveEvent> {
     const registered_by = await this.requireRegisteredBy();
@@ -136,18 +153,29 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
       );
     }
 
-    const row: Record<string, unknown> = {
-      [cols.female]: payload.female_animal_id,
-      [cols.eventType]: payload.event_type,
-      event_date: payload.event_date,
-      [cols.maleExternal]: male_external,
-      notes: payload.notes?.trim() || null,
-      [cols.registeredBy]: registered_by,
-      [cols.status]: 'en_seguimiento' as const,
-    };
-    if (cols.male) {
-      row[cols.male] = male_animal_id;
-    }
+    // Obtener perfil del usuario
+const { data: profile } = await this.supabase
+  .from('profiles')
+  .select('full_name, role')
+  .eq('id', registered_by)
+  .single();
+
+const row: Record<string, unknown> = {
+  [cols.female]: payload.female_animal_id,
+  [cols.eventType]: payload.event_type,
+  event_date: payload.event_date,
+  [cols.maleExternal]: male_external,
+  notes: payload.notes?.trim() || null,
+  [cols.registeredBy]: registered_by,
+  [cols.status]: 'en_seguimiento' as const,
+  // Campos de auditoría
+  created_by: registered_by,
+  created_by_role: profile?.role || 'EMPLEADO',
+  created_by_name: profile?.full_name || 'Usuario',
+};
+if (cols.male) {
+  row[cols.male] = male_animal_id;
+}
 
     const { data, error } = await this.supabase
       .from('reproductive_events')
@@ -424,14 +452,25 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
     const { data: { user }, error: authError } = await this.supabase.auth.getUser();
     if (authError || !user) throw new Error('Debes iniciar sesión.');
 
-    const { data, error } = await this.supabase
-      .from('reproductive_events')
-      .insert({
-        ...input,
-        registered_by: user.id
-      })
-      .select()
-      .single();
+    // Obtener perfil del usuario
+const { data: profile } = await this.supabase
+  .from('profiles')
+  .select('full_name, role')
+  .eq('id', user.id)
+  .single();
+
+const { data, error } = await this.supabase
+  .from('reproductive_events')
+  .insert({
+    ...input,
+    registered_by: user.id,
+    // Campos de auditoría
+    created_by: user.id,
+    created_by_role: profile?.role || 'EMPLEADO',
+    created_by_name: profile?.full_name || user.email,
+  })
+  .select()
+  .single();
 
     if (error) throw new Error(`Error al registrar: ${error.message}`);
 

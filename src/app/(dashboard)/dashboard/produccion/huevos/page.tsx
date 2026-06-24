@@ -6,6 +6,7 @@ import { getEggRecords, getChickenBatches, EggRecordFilters } from '@/actions/pr
 import { EggFried, ArrowLeft, History, Search, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import type { EggProductionRecord } from '@/types/domain/production.schema';
+import CreatorBadge from '@/components/ui/CreatorBadge';
 
 export default function EggProductionPage() {
   const [batches, setBatches] = useState<any[]>([]);
@@ -157,43 +158,53 @@ export default function EggProductionPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {isPending ? (
-                  <tr>
-                    <td colSpan={3} className="px-5 py-12 text-center">
-                      <Loader2 className="w-6 h-6 animate-spin text-amber-400 mx-auto" />
-                    </td>
-                  </tr>
-                ) : records.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-5 py-12 text-center text-gray-500 font-medium">
-                      No hay registros con estos filtros.
-                    </td>
-                  </tr>
-                ) : records.map(record => (
-                  <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="font-bold text-gray-900">
-                        {new Date(record.production_date).toLocaleDateString('es-CO')}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 font-medium text-gray-800">
-                      {record.lot_name || 'Lote Desconocido'}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="font-extrabold text-amber-600 bg-amber-50 px-3 py-1 rounded-lg">
-                          {record.quantity_units} Ud
-                        </span>
-                        {(record.discarded_units ?? 0) > 0 && (
-                          <span className="text-xs text-red-500 font-bold">
-                            -{record.discarded_units} rotos
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+  {isPending ? (
+    <tr>
+      <td colSpan={3} className="px-5 py-12 text-center">
+        <Loader2 className="w-6 h-6 animate-spin text-amber-400 mx-auto" />
+      </td>
+    </tr>
+  ) : records.length === 0 ? (
+    <tr>
+      <td colSpan={3} className="px-5 py-12 text-center text-gray-500 font-medium">
+        No hay registros con estos filtros.
+      </td>
+    </tr>
+  ) : records.map(record => (
+    <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
+      <td className="px-5 py-4">
+        <div className="flex flex-col gap-1">
+          {/* Badge del creador */}
+          <CreatorBadge 
+            creatorName={(record as any).created_by_name}
+            creatorRole={(record as any).created_by_role}
+            createdAt={record.created_at}
+          />
+          
+          {/* Fecha */}
+          <div className="font-bold text-gray-900">
+            {new Date(record.production_date).toLocaleDateString('es-CO')}
+          </div>
+        </div>
+      </td>
+      <td className="px-5 py-4 font-medium text-gray-800">
+        {record.lot_name || 'Lote Desconocido'}
+      </td>
+      <td className="px-5 py-4 text-right">
+        <div className="flex flex-col items-end gap-1">
+          <span className="font-extrabold text-amber-600 bg-amber-50 px-3 py-1 rounded-lg">
+            {record.quantity_units} Ud
+          </span>
+          {(record.discarded_units ?? 0) > 0 && (
+            <span className="text-xs text-red-500 font-bold">
+              -{record.discarded_units} rotos
+            </span>
+          )}
+        </div>
+      </td>
+    </tr>
+  ))}
+</tbody>
             </table>
           </div>
         </div>

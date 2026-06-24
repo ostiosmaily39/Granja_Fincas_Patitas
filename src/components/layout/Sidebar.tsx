@@ -70,15 +70,15 @@ export default function Sidebar({ role: roleProp }: SidebarProps) {
 
   return (
     <>
-      <aside className={`fixed inset-y-0 left-0 z-30 w-64 bg-[var(--sidebar-bg)] border-r border-[var(--glass-border)] transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col h-full shadow-sm transition-all`}>
+      <aside className={`fixed inset-y-0 left-0 z-30 w-64 bg-\\\[var(--sidebar-bg)] border-r border-\\\[var(--glass-border)] transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col h-full shadow-sm transition-all`}>
         <div className="h-24 flex items-center justify-between px-6 pt-2">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-black/5">
-              <Tractor className="h-6 w-6 text-[var(--brand)]" />
+              <Tractor className="h-6 w-6 text-\\\[var(--brand)]" />
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-base text-gray-800 tracking-tight leading-none">Fincas y Patitas</span>
-              <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400 mt-1">
+              <span className="text-\\\[10px] uppercase tracking-widest font-bold text-gray-400 mt-1">
                 {role === 'ADMINISTRADOR' ? 'Panel Admin' : 'Panel Empleado'}
               </span>
             </div>
@@ -102,17 +102,17 @@ export default function Sidebar({ role: roleProp }: SidebarProps) {
                 className={`group relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive ? 'bg-white text-gray-900 shadow-sm border border-black/5' : 'text-gray-500 hover:text-gray-800 hover:bg-white/50'}`}
               >
                 {isActive && (
-                  <div className="absolute left-0 w-1.5 h-8 bg-[var(--brand)] rounded-r-full" />
+                  <div className="absolute left-0 w-1.5 h-8 bg-\\\[var(--brand)] rounded-r-full" />
                 )}
-                <item.icon className={`h-5 w-5 transition-colors ${isActive ? 'text-[var(--brand)]' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                <span className="text-[11px] uppercase tracking-wider font-bold">{item.name}</span>
+                <item.icon className={`h-5 w-5 transition-colors ${isActive ? 'text-\\\[var(--brand)]' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                <span className="text-\\\[11px] uppercase tracking-wider font-bold">{item.name}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 px-6 border-t border-[var(--glass-border)] flex flex-col gap-4 bg-white/30">
-          <div className="text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest opacity-60 pb-2">
+        <div className="p-4 px-6 border-t border-\\\[var(--glass-border)] flex flex-col gap-4 bg-white/30">
+          <div className="text-\\\[10px] font-bold text-gray-400 text-center uppercase tracking-widest opacity-60 pb-2">
             &copy; {new Date().getFullYear()} Fincas y Patitas
           </div>
         </div>

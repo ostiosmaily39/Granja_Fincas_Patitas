@@ -11,6 +11,7 @@ import { SupabaseAnimalRepository } from '@/repositories/supabase/AnimalReposito
 import { createClient } from '@/utils/supabase/client';
 import { AnimalWithRelations } from '@/types/domain/animal.schema';
 import AnimalFormModal from '@/components/animales/AnimalFormModal';
+import CreatorBadge from '@/components/ui/CreatorBadge';
 
 // Función para extraer el apodo del campo notes
 function extractNickname(notes: string | null | undefined): string | null {
@@ -217,33 +218,39 @@ export default function AnimalesPage() {
 
   const columns: Column<AnimalWithRelations>[] = [
     {
-      key: 'name',
-      header: 'Identificación',
-      sortable: true,
-      render: (a) => {
-        // Extraer apodo de las notas
-        const nickname = extractNickname(a.notes);
+  key: 'name',
+  header: 'Identificación',
+  sortable: true,
+  render: (a) => {
+    const nickname = extractNickname(a.notes);
 
-        return (
-          <div className="flex flex-col gap-1">
-            {/* Apodo/Nombre del animal */}
-            {nickname && nickname.length > 0 ? (
-              <span className="font-extrabold text-gray-900 text-base capitalize">
-                {nickname}
-              </span>
-            ) : (
-              <span className="text-sm font-bold text-gray-400 italic">
-                Sin apodo
-              </span>
-            )}
-            {/* Código del animal */}
-            <span className="text-xs font-bold text-[var(--brand)] font-mono">
-              {a.code}
-            </span>
-          </div>
-        );
-      }
-    },
+    return (
+      <div className="flex flex-col gap-2">
+        {/* Badge del creador - ARRIBA A LA IZQUIERDA */}
+        <CreatorBadge 
+          creatorName={(a as any).created_by_name}
+          creatorRole={(a as any).created_by_role}
+          createdAt={a.created_at}
+        />
+        
+        {/* Apodo/Nombre del animal */}
+        {nickname && nickname.length > 0 ? (
+          <span className="font-extrabold text-gray-900 text-base capitalize">
+            {nickname}
+          </span>
+        ) : (
+          <span className="text-sm font-bold text-gray-400 italic">
+            Sin apodo
+          </span>
+        )}
+        {/* Código del animal */}
+        <span className="text-xs font-bold text-[var(--brand)] font-mono">
+          {a.code}
+        </span>
+      </div>
+    );
+  }
+},
     {
       key: 'species',
       header: 'Especie / Raza',

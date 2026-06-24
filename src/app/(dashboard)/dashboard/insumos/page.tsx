@@ -14,6 +14,7 @@ import {
   InventorySearchParams,
 } from '@/repositories/supabase/InventoryRepository';
 import { createClient } from '@/utils/supabase/client';
+import CreatorBadge from '@/components/ui/CreatorBadge';
 
 // ─── Tipos internos de filtros ────────────────────────────────────────────────
 
@@ -196,16 +197,27 @@ export default function InsumosPage() {
   // ── Columnas ──
   const columns: Column<SupplyListRow>[] = [
     {
-      key: 'name',
-      header: 'Insumo',
-      sortable: true,
-      render: (s) => (
-        <div className="flex flex-col">
-          <span className="font-extrabold text-gray-900">{s.name}</span>
-          <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider">{s.code}</span>
-        </div>
-      ),
-    },
+  key: 'name',
+  header: 'Insumo',
+  sortable: true,
+  render: (s) => (
+    <div className="flex flex-col gap-2">
+      {/* Badge del creador - ARRIBA A LA IZQUIERDA */}
+      <CreatorBadge 
+        creatorName={s.created_by_name}
+        creatorRole={s.created_by_role}
+        createdAt={s.created_at}
+      />
+      
+      {/* Nombre del insumo */}
+      <span className="font-extrabold text-gray-900">{s.name}</span>
+      {/* Código */}
+      <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider">
+        {s.code}
+      </span>
+    </div>
+  ),
+},
     {
       key: 'category',
       header: 'Categoría',

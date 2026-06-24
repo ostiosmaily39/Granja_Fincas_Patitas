@@ -4,6 +4,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminDashboard from './AdminDashboard';
 import EmpleadoDashboard from './EmpleadoDashboard';
+import NotificationBanner from '@/components/notifications/NotificationBanner';
 import { Loader2 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -17,9 +18,11 @@ export default function DashboardPage() {
     );
   }
 
-  if (role === 'ADMINISTRADOR') {
-    return <AdminDashboard />;
-  }
-
-  return <EmpleadoDashboard />;
+  return (
+    <>
+      <NotificationBanner />
+      
+      {role === 'ADMINISTRADOR' ? <AdminDashboard /> : <EmpleadoDashboard />}
+    </>
+  );
 }

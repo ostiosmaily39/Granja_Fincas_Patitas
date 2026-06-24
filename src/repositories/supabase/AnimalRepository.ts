@@ -187,28 +187,39 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
     if (notesTrim) noteLines.push(notesTrim);
     const combinedNotes = noteLines.length ? noteLines.join('\n\n') : null;
 
-    const animalToInsert: Record<string, unknown> = {
-      species_id: payload.species_id,
-      breed_id: breedId,
-      sex: payload.sex,
-      birth_date: birthDate,
-      acquisition_date: acquisitionDate,
-      origin,
-      initial_weight_kg: initialWeight,
-      current_weight_kg: currentWeight,
-      status: 'activo',
-      health_status: toDbHealthStatus(payload.health_status),
-      reproductive_status: toDbReproductiveStatus(
-        payload.reproductive_status,
-        payload.sex
-      ),
-      vaccination_status: toDbVaccinationStatus(payload.vaccination_status),
-      mother_id: payload.mother_id ?? null,
-      father_id: payload.father_id ?? null,
-      father_external: payload.father_external?.trim() || null,
-      notes: combinedNotes,
-      registered_by: user.id,
-    };
+    // Obtener información del perfil del usuario
+const { data: profile } = await this.supabase
+  .from('profiles')
+  .select('full_name, role')
+  .eq('id', user.id)
+  .single();
+
+const animalToInsert: Record<string, unknown> = {
+  species_id: payload.species_id,
+  breed_id: breedId,
+  sex: payload.sex,
+  birth_date: birthDate,
+  acquisition_date: acquisitionDate,
+  origin,
+  initial_weight_kg: initialWeight,
+  current_weight_kg: currentWeight,
+  status: 'activo',
+  health_status: toDbHealthStatus(payload.health_status),
+  reproductive_status: toDbReproductiveStatus(
+    payload.reproductive_status,
+    payload.sex
+  ),
+  vaccination_status: toDbVaccinationStatus(payload.vaccination_status),
+  mother_id: payload.mother_id ?? null,
+  father_id: payload.father_id ?? null,
+  father_external: payload.father_external?.trim() || null,
+  notes: combinedNotes,
+  registered_by: user.id,
+  // Campos de auditoría
+  created_by: user.id,
+  created_by_role: profile?.role || 'EMPLEADO',
+  created_by_name: profile?.full_name || user.email,
+};
 
     const { data, error } = await this.supabase
       .from('animals')
@@ -224,19 +235,28 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
   }
 
   async update(id: string, payload: Partial<Animal>): Promise<Animal> {
-    const { data, error } = await this.supabase
-      .from('animals')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Error al actualizar el animal: ${error.message}`);
-    }
-
-    return data as Animal;
+  // Obtener usuario actual
+  const { data: { user } } = await this.supabase.auth.getUser();
+  
+  if (user) {
+    // Agregar información de quién actualizó
+    (payload as any).updated_by = user.id;
+    (payload as any).updated_at = new Date().toISOString();
   }
+
+  const { data, error } = await this.supabase
+    .from('animals')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Error al actualizar el animal: ${error.message}`);
+  }
+
+  return data as Animal;
+}
 
   async changeStatus(id: string, newStatus: Animal['status'], notes?: string): Promise<Animal> {
     const updateData: Partial<Animal> = { status: newStatus };

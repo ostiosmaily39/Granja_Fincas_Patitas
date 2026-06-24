@@ -10,6 +10,7 @@ import ReproductionStatusModal from '@/components/reproduccion/ReproductionStatu
 import { Sprout, CheckCircle2, XCircle, Clock, Plus, Pencil, Loader2, Search } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { SupabaseReproductionRepository } from '@/repositories/supabase/ReproductionRepository';
+import CreatorBadge from '@/components/ui/CreatorBadge';
 import type {
   GestationStatus,
   ReproductiveEventWithRelations,
@@ -144,18 +145,26 @@ export default function ReproduccionPage() {
 
   const columns: Column<ReproductiveEventWithRelations>[] = [
     {
-      key: 'cross',
-      header: 'Identificación del cruce',
-      render: (r) => (
-        <div className="flex flex-col">
-          <span className="font-extrabold text-gray-900">{crossTitle(r)}</span>
-          <span className="text-xs font-bold text-gray-400">
-            Hembra: {r.female_animal?.code ?? '—'}
-            {r.male_animal ? ` · Macho: ${r.male_animal.code}` : r.male_external ? ` · Externo: ${r.male_external}` : ''}
-          </span>
-        </div>
-      ),
-    },
+  key: 'cross',
+  header: 'Identificación del cruce',
+  render: (r) => (
+    <div className="flex flex-col gap-2">
+      {/* Badge del creador - ARRIBA A LA IZQUIERDA */}
+      <CreatorBadge 
+        creatorName={(r as any).created_by_name}
+        creatorRole={(r as any).created_by_role}
+        createdAt={r.created_at}
+      />
+      
+      {/* Identificación del cruce */}
+      <span className="font-extrabold text-gray-900">{crossTitle(r)}</span>
+      <span className="text-xs font-bold text-gray-400">
+        Hembra: {r.female_animal?.code ?? '—'}
+        {r.male_animal ? ` · Macho: ${r.male_animal.code}` : r.male_external ? ` · Externo: ${r.male_external}` : ''}
+      </span>
+    </div>
+  ),
+},
     {
       key: 'breed',
       header: 'Raza / cruce',

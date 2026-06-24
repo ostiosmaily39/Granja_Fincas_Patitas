@@ -11,6 +11,7 @@ import { SupabaseAnimalRepository } from '@/repositories/supabase/AnimalReposito
 import type { VaccineScheme, CreateVaccineSchemeInput } from '@/types/domain/health.schema';
 import type { Species } from '@/types/domain/animal.schema';
 import MassVaccinationModal from '@/components/animales/MassVaccinationModal';
+import CreatorBadge from '@/components/ui/CreatorBadge';
 
 type ModalMode = 'create' | 'edit';
 
@@ -282,7 +283,19 @@ export default function VacunacionPage() {
                 <tbody className="divide-y divide-black/5">
                   {filteredSchemes.map((s) => (
                     <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 font-black text-gray-900">{s.vaccine_name}</td>
+                      <td className="px-6 py-4">
+                      <div className="flex flex-col gap-2">
+                          {/* Badge del creador */}
+                          <CreatorBadge 
+                            creatorName={(s as any).created_by_name}
+                            creatorRole={(s as any).created_by_role}
+                            createdAt={s.created_at}
+                          />
+                          
+                          {/* Nombre de la vacuna */}
+                          <span className="font-black text-gray-900">{s.vaccine_name}</span>
+                      </div>
+                      </td>
                       <td className="px-6 py-4">
                         <Badge variant="neutral">{getSpeciesName(s.species_id)}</Badge>
                       </td>

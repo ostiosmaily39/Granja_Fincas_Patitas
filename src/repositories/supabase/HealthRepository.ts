@@ -66,17 +66,28 @@ export class SupabaseHealthRepository implements IHealthRepository {
       resolvedAt = input.detected_at;
     }
 
-    const row: Record<string, unknown> = {
-      animal_id: input.animal_id,
-      event_type: input.event_type,
-      detected_at: input.detected_at,
-      description: input.description.trim(),
-      diagnosis: input.diagnosis?.trim() || null,
-      recovery_status: recovery,
-      resolved_at: resolvedAt,
-      notes: input.notes?.trim() || null,
-      registered_by: user.id,
-    };
+    // Obtener perfil del usuario
+const { data: profile } = await this.supabase
+  .from('profiles')
+  .select('full_name, role')
+  .eq('id', user.id)
+  .single();
+
+const row: Record<string, unknown> = {
+  animal_id: input.animal_id,
+  event_type: input.event_type,
+  detected_at: input.detected_at,
+  description: input.description.trim(),
+  diagnosis: input.diagnosis?.trim() || null,
+  recovery_status: recovery,
+  resolved_at: resolvedAt,
+  notes: input.notes?.trim() || null,
+  registered_by: user.id,
+  // Campos de auditoría
+  created_by: user.id,
+  created_by_role: profile?.role || 'EMPLEADO',
+  created_by_name: profile?.full_name || user.email,
+};
 
     const { data: created, error: insertErr } = await this.supabase
       .from('health_events')
@@ -129,34 +140,54 @@ export class SupabaseHealthRepository implements IHealthRepository {
   // ── VACUNACIÓN ─────────────────────────────────────────────────────────
 
   async getVaccineSchemes(speciesId?: string): Promise<VaccineScheme[]> {
-    let q = this.supabase
-      .from('vaccine_schemes')
-      .select('*, species:species_id(id, name, display_name)')
-      .eq('is_active', true)
-      .order('vaccine_name');
+  let q = this.supabase
+    .from('vaccine_schemes')
+    .select(`
+      *,
+      created_by,
+      created_by_name,
+      created_by_role,
+      created_at,
+      species:species_id(id, name, display_name)
+    `)
+    .eq('is_active', true)
+    .order('vaccine_name');
 
-    if (speciesId) {
-      q = q.or(`species_id.eq.${speciesId},species_id.is.null`);
-    }
-
-    const { data, error } = await q;
-    if (error) throw new Error(`Error al cargar esquemas de vacunación: ${error.message}`);
-    return (data ?? []) as VaccineScheme[];
+  if (speciesId) {
+    q = q.or(`species_id.eq.${speciesId},species_id.is.null`);
   }
+
+  const { data, error } = await q;
+  if (error) throw new Error(`Error al cargar esquemas de vacunación: ${error.message}`);
+  return (data ?? []) as VaccineScheme[];
+}
 
   async createVaccineScheme(input: CreateVaccineSchemeInput): Promise<VaccineScheme> {
-    const { data: { user }, error: authError } = await this.supabase.auth.getUser();
-    if (authError || !user) throw new Error('Debes iniciar sesión.');
+  const { data: { user }, error: authError } = await this.supabase.auth.getUser();
+  if (authError || !user) throw new Error('Debes iniciar sesión.');
 
-    const { data, error } = await this.supabase
-      .from('vaccine_schemes')
-      .insert({ ...input, species_id: input.species_id || null, created_by: user.id })
-      .select()
-      .single();
+  // Obtener perfil del usuario
+  const { data: profile } = await this.supabase
+    .from('profiles')
+    .select('full_name, role')
+    .eq('id', user.id)
+    .single();
 
-    if (error) throw new Error(`Error al crear esquema: ${error.message}`);
-    return data as VaccineScheme;
-  }
+  const { data, error } = await this.supabase
+    .from('vaccine_schemes')
+    .insert({ 
+      ...input, 
+      species_id: input.species_id || null, 
+      created_by: user.id,
+      created_by_role: profile?.role || 'EMPLEADO',
+      created_by_name: profile?.full_name || user.email,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(`Error al crear esquema: ${error.message}`);
+  return data as VaccineScheme;
+}
 
   async updateVaccineScheme(
     id: string,
@@ -203,23 +234,35 @@ export class SupabaseHealthRepository implements IHealthRepository {
     }
 
     // 2. Insertar registro de vacunación
-    const { data: record, error: recErr } = await this.supabase
-      .from('vaccination_records')
-      .insert({
-        animal_id: input.animal_id,
-        scheme_id: input.scheme_id || null,
-        supply_id: input.supply_id || null,
-        vaccine_name: input.vaccine_name.trim(),
-        quantity_used: input.quantity_used,
-        unit: input.unit.trim(),
-        applied_at: input.applied_at,
-        next_dose_date: input.next_dose_date || null,
-        responsible: input.responsible.trim(),
-        notes: input.notes?.trim() || null,
-        registered_by: user.id,
-      })
-      .select()
-      .single();
+    // Obtener perfil del usuario
+const { data: profile } = await this.supabase
+  .from('profiles')
+  .select('full_name, role')
+  .eq('id', user.id)
+  .single();
+
+// 2. Insertar registro de vacunación
+const { data: record, error: recErr } = await this.supabase
+  .from('vaccination_records')
+  .insert({
+    animal_id: input.animal_id,
+    scheme_id: input.scheme_id || null,
+    supply_id: input.supply_id || null,
+    vaccine_name: input.vaccine_name.trim(),
+    quantity_used: input.quantity_used,
+    unit: input.unit.trim(),
+    applied_at: input.applied_at,
+    next_dose_date: input.next_dose_date || null,
+    responsible: input.responsible.trim(),
+    notes: input.notes?.trim() || null,
+    registered_by: user.id,
+    // Campos de auditoría
+    created_by: user.id,
+    created_by_role: profile?.role || 'EMPLEADO',
+    created_by_name: profile?.full_name || user.email,
+  })
+  .select()
+  .single();
 
     if (recErr) throw new Error(`Error al registrar vacuna: ${recErr.message}`);
 

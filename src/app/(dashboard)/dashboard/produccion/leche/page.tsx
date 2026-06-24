@@ -6,6 +6,7 @@ import { getMilkRecords, getCows, MilkRecordFilters } from '@/actions/production
 import { Milk, ArrowLeft, History, Search, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import type { MilkProductionRecord } from '@/types/domain/production.schema';
+import CreatorBadge from '@/components/ui/CreatorBadge';
 
 const SHIFT_OPTIONS = [
   { value: 'all', label: 'Todos los turnos' },
@@ -167,42 +168,52 @@ export default function MilkProductionPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {isPending ? (
-                  <tr>
-                    <td colSpan={3} className="px-5 py-12 text-center">
-                      <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
-                    </td>
-                  </tr>
-                ) : records.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-5 py-12 text-center text-gray-500 font-medium">
-                      No hay registros con estos filtros.
-                    </td>
-                  </tr>
-                ) : records.map(record => (
-                  <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="font-bold text-gray-900">
-                        {new Date(record.production_date).toLocaleDateString('es-CO')}
-                      </div>
-                      <div className="text-xs text-gray-500 font-medium bg-gray-100 inline-block px-2 py-0.5 rounded mt-1 capitalize">
-                        {record.shift}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 font-medium text-gray-800">
-                      {(record.animal as any)?.notes || 'Animal (sin apodo)'}
-                      <span className="block text-xs text-gray-400">
-                        Código: {(record.animal as any)?.code}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <span className="font-extrabold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">
-                        {record.quantity_liters} L
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+  {isPending ? (
+    <tr>
+      <td colSpan={3} className="px-5 py-12 text-center">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
+      </td>
+    </tr>
+  ) : records.length === 0 ? (
+    <tr>
+      <td colSpan={3} className="px-5 py-12 text-center text-gray-500 font-medium">
+        No hay registros con estos filtros.
+      </td>
+    </tr>
+  ) : records.map(record => (
+    <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
+      <td className="px-5 py-4">
+        <div className="flex flex-col gap-1">
+          {/* Badge del creador */}
+          <CreatorBadge 
+            creatorName={(record as any).created_by_name}
+            creatorRole={(record as any).created_by_role}
+            createdAt={record.created_at}
+          />
+          
+          {/* Fecha */}
+          <div className="font-bold text-gray-900">
+            {new Date(record.production_date).toLocaleDateString('es-CO')}
+          </div>
+          <div className="text-xs text-gray-500 font-medium bg-gray-100 inline-block px-2 py-0.5 rounded mt-1 capitalize">
+            {record.shift}
+          </div>
+        </div>
+      </td>
+      <td className="px-5 py-4 font-medium text-gray-800">
+        {(record.animal as any)?.notes || 'Animal (sin apodo)'}
+        <span className="block text-xs text-gray-400">
+          Código: {(record.animal as any)?.code}
+        </span>
+      </td>
+      <td className="px-5 py-4 text-right">
+        <span className="font-extrabold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">
+          {record.quantity_liters} L
+        </span>
+      </td>
+    </tr>
+  ))}
+</tbody>
             </table>
           </div>
         </div>

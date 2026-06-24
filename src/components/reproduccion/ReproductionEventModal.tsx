@@ -17,6 +17,12 @@ interface ReproductionEventModalProps {
   onSuccess: () => void;
 }
 
+interface ProfileOption {
+  id: string;
+  full_name: string;
+  role: string;
+}
+
 const ESPECIES = [
   { value: '', label: 'Seleccionar especie…' },
   { value: '0753a97a-a184-4197-877e-9fbf96a9ffef', label: 'Vaca' },
@@ -24,12 +30,19 @@ const ESPECIES = [
   { value: '7535273c-720c-4da6-935a-aba86b9173a3', label: 'Gallina' },
 ];
 
+const ROLE_LABELS: Record<string, string> = {
+  ADMINISTRADOR: 'Administrador',
+  ENCARGADO: 'Encargado',
+  EMPLEADO: 'Empleado',
+};
+
 export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: ReproductionEventModalProps) {
   const [repo] = useState(() => new SupabaseReproductionRepository(createClient()));
   const [loading, setLoading] = useState(false);
   const [boot, setBoot] = useState(true);
   const [females, setFemales] = useState<ReproductiveAnimalMini[]>([]);
   const [males, setMales] = useState<ReproductiveAnimalMini[]>([]);
+  const [profiles, setProfiles] = useState<ProfileOption[]>([]);
 
   const [especieFilter, setEspecieFilter] = useState('');
   const [femaleId, setFemaleId] = useState('');
@@ -60,12 +73,19 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
     (async () => {
       try {
         setBoot(true);
-        const [f, m] = await Promise.all([
+        const supabase = createClient();
+        const [f, m, { data: profilesData }] = await Promise.all([
           repo.listAnimalsBySex('hembra'),
           repo.listAnimalsBySex('macho'),
+          supabase
+            .from('profiles')
+            .select('id, full_name, role')
+            .eq('is_active', true)
+            .order('full_name'),
         ]);
         setFemales(f);
         setMales(m);
+        setProfiles(profilesData ?? []);
         setEventDate(new Date().toISOString().slice(0, 10));
         setFemaleId('');
         setEspecieFilter('');
@@ -76,7 +96,7 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
         setUseExternalMale(false);
         setResponsible('');
       } catch (e) {
-        alert(`No se pudieron cargar los animales: ${(e as Error).message}`);
+        alert(`No se pudieron cargar los datos: ${(e as Error).message}`);
       } finally {
         setBoot(false);
       }
@@ -98,8 +118,8 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
       setLoading(true);
       if (!especieFilter) throw new Error('Seleccione la especie.');
       if (!femaleId) throw new Error('Seleccione la hembra.');
+      if (!responsible) throw new Error('Seleccione el responsable.');
       if (!eventDate) throw new Error('Indique la fecha del evento.');
-      if (!responsible) throw new Error('Indique el responsable.');
 
       const payload: CreateReproductiveEventDTO = {
         animal_id: femaleId,
@@ -130,20 +150,27 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
 
+          {/* Responsable */}
           <div>
             <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
               Responsable *
             </label>
-            <input
+            <select
               required
-              type="text"
               value={responsible}
               onChange={(e) => setResponsible(e.target.value)}
-              placeholder="Nombre del encargado..."
               className="w-full bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-[var(--brand)]"
-            />
+            >
+              <option value="" disabled>Seleccionar responsable…</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.full_name}>
+                  {p.full_name} — {ROLE_LABELS[p.role] ?? p.role}
+                </option>
+              ))}
+            </select>
           </div>
 
+          {/* Especie */}
           <div>
             <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
               Especie *
@@ -162,6 +189,7 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
             </select>
           </div>
 
+          {/* Hembra */}
           <div>
             <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
               Hembra *
@@ -186,6 +214,7 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
             )}
           </div>
 
+          {/* Tipo de evento y fecha */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
@@ -215,6 +244,7 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
             </div>
           </div>
 
+          {/* Padre */}
           <div className="rounded-xl border border-black/5 p-4 bg-gray-50/50 space-y-3">
             <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-gray-700">
               <input
@@ -268,6 +298,7 @@ export default function ReproductionEventModal({ isOpen, onClose, onSuccess }: R
             )}
           </div>
 
+          {/* Notas */}
           <div>
             <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
               Notas

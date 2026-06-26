@@ -1,4 +1,5 @@
 import { Rol } from '@/types/domain/user.schema';
+import { isAdministrator, normalizeRole } from '@/lib/role-utils';
 
 /**
  * Definición de los permisos por ruta o módulo.
@@ -34,6 +35,10 @@ export const ROUTE_PERMISSIONS: Record<string, Rol[]> = {
  */
 export function canAccess(role: Rol | null, path: string): boolean {
   if (!role) return false;
+  if (isAdministrator(role)) return true;
+
+  const normalized = normalizeRole(role);
+  if (!normalized) return false;
 
   // Encontrar la regla de permiso más específica para el path
   const protectedPath = Object.keys(ROUTE_PERMISSIONS)
@@ -42,5 +47,5 @@ export function canAccess(role: Rol | null, path: string): boolean {
 
   if (!protectedPath) return true; // Si no está en la lista de protegidos, es pública (o manejada por middleware base)
 
-  return ROUTE_PERMISSIONS[protectedPath].includes(role);
+  return ROUTE_PERMISSIONS[protectedPath].includes(normalized);
 }

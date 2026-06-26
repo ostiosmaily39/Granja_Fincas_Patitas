@@ -123,7 +123,6 @@ export default function AlertasPage() {
 
   useEffect(() => { void loadFoodAlerts(); }, [loadFoodAlerts]);
 
-  // La variable repo se usa para futuras extensiones; suprimir warning si es necesario
   void repo;
 
   const handleRefresh = () => {

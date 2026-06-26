@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { SupabaseReproductionRepository } from '@/repositories/supabase/ReproductionRepository';
 import { SupabaseAnimalRepository } from '@/repositories/supabase/AnimalRepository';
 import type { AnimalWithRelations } from '@/types/domain/animal.schema';
+import type { EventType } from '@/types/domain/reproduction.schema';
 
 interface Props {
   isOpen: boolean;
@@ -22,9 +23,8 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state
   const [eventDate, setEventDate] = useState(todayISO());
-  const [serviceType, setServiceType] = useState<'IA' | 'monta_natural'>('IA');
+  const [serviceType, setServiceType] = useState<EventType>('inseminacion_artificial');
   const [fatherId, setFatherId] = useState('');
   const [fatherExternal, setFatherExternal] = useState('');
   const [responsible, setResponsible] = useState('');
@@ -54,7 +54,6 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
     e.preventDefault();
     setError(null);
 
-    // Validaciones basicas
     if (!responsible.trim()) return setError('Indica el responsable del servicio.');
     if (!fatherId && !fatherExternal.trim()) {
       return setError('Debes seleccionar un macho interno o indicar uno externo/pajilla.');
@@ -62,17 +61,14 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
 
     setSaving(true);
     try {
-      await reproRepo.registerEvent({
+      await reproRepo.create({
         animal_id: animal.id,
-        event_type: 'servicio',
-        event_date: new Date(eventDate).toISOString(),
-        service_type: serviceType,
+        event_type: serviceType,
+        event_date: new Date(eventDate).toISOString().slice(0, 10),
         father_id: fatherId || null,
         father_external: fatherExternal.trim() || null,
         responsible: responsible.trim(),
         notes: notes.trim() || null,
-        result: 'pendiente',
-        offspring_count: 0
       });
       onSuccess();
       handleClose();
@@ -85,7 +81,7 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
 
   const handleClose = () => {
     setEventDate(todayISO());
-    setServiceType('IA');
+    setServiceType('inseminacion_artificial');
     setFatherId('');
     setFatherExternal('');
     setResponsible('');
@@ -100,6 +96,7 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-black/5">
           <div className="flex items-center gap-3">
@@ -108,7 +105,9 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
             </div>
             <div>
               <h2 className="text-lg font-black text-gray-900">Registrar Servicio</h2>
-              <p className="text-xs font-bold text-gray-400">Inicio de ciclo reproductivo para {animal.code}</p>
+              <p className="text-xs font-bold text-gray-400">
+                Inicio de ciclo reproductivo para {animal.code}
+              </p>
             </div>
           </div>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 p-2">
@@ -117,29 +116,35 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
+
           {/* Tipo de Servicio */}
           <div className="flex p-1 bg-gray-50 rounded-2xl border border-black/5 gap-1">
-             <button
-               type="button"
-               onClick={() => setServiceType('IA')}
-               className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${serviceType === 'IA' ? 'bg-white shadow-sm text-pink-600' : 'text-gray-400'}`}
-             >
-               Inseminación Artificial
-             </button>
-             <button
-               type="button"
-               onClick={() => setServiceType('monta_natural')}
-               className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${serviceType === 'monta_natural' ? 'bg-white shadow-sm text-pink-600' : 'text-gray-400'}`}
-             >
-               Monta Natural
-             </button>
+            <button
+              type="button"
+              onClick={() => setServiceType('inseminacion_artificial')}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${serviceType === 'inseminacion_artificial'
+                  ? 'bg-white shadow-sm text-pink-600'
+                  : 'text-gray-400'
+                }`}
+            >
+              Inseminación artificial
+            </button>
+            <button
+              type="button"
+              onClick={() => setServiceType('monta_natural')}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${serviceType === 'monta_natural'
+                  ? 'bg-white shadow-sm text-pink-600'
+                  : 'text-gray-400'
+                }`}
+            >
+              Monta natural
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Fecha */}
             <div>
               <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">
-                Fecha y Hora *
+                Fecha y hora *
               </label>
               <input
                 type="datetime-local"
@@ -149,8 +154,6 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
                 required
               />
             </div>
-
-            {/* Responsable */}
             <div>
               <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">
                 Responsable *
@@ -167,11 +170,12 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
           </div>
 
           <div className="space-y-4 pt-2 border-t border-black/5">
-            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Identificación del Padre</h4>
-            
-            {/* Macho Interno */}
+            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              Identificación del Padre
+            </h4>
+
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1.5">Macho de la Granja</label>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">Macho de la granja</label>
               <div className="relative">
                 <select
                   value={fatherId}
@@ -193,14 +197,15 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
             </div>
 
             <div className="flex items-center gap-4 text-gray-300">
-               <div className="h-px bg-current flex-1"></div>
-               <span className="text-[10px] font-black uppercase">O BIEN</span>
-               <div className="h-px bg-current flex-1"></div>
+              <div className="h-px bg-current flex-1" />
+              <span className="text-[10px] font-black uppercase">O BIEN</span>
+              <div className="h-px bg-current flex-1" />
             </div>
 
-            {/* Macho Externo */}
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1.5">Macho Externo / Código de Pajilla</label>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">
+                Macho externo / código de pajilla
+              </label>
               <input
                 type="text"
                 value={fatherExternal}
@@ -227,11 +232,11 @@ export default function ServiceModal({ isOpen, animal, onClose, onSuccess }: Pro
           </div>
 
           <div className="p-4 bg-blue-50/50 rounded-2xl flex items-start gap-3">
-             <Info className="text-blue-500 shrink-0 mt-0.5" size={16} />
-             <p className="text-[11px] font-bold text-blue-700 leading-relaxed">
-                Al registrar el servicio, el sistema actualizará el ciclo del animal. 
-                Recuerda programar el diagnóstico reproductivo para confirmar la preñez.
-             </p>
+            <Info className="text-blue-500 shrink-0 mt-0.5" size={16} />
+            <p className="text-[11px] font-bold text-blue-700 leading-relaxed">
+              Al registrar el servicio, el sistema actualizará el ciclo del animal.
+              Recuerda programar el diagnóstico reproductivo para confirmar la preñez.
+            </p>
           </div>
 
           {error && (

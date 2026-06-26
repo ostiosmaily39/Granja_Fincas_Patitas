@@ -7,8 +7,9 @@ import DataTable, { Column } from '@/components/ui/DataTable';
 import Badge from '@/components/ui/Badge';
 import ReproductionEventModal from '@/components/reproduccion/ReproductionEventModal';
 import ReproductionStatusModal from '@/components/reproduccion/ReproductionStatusModal';
-import { Sprout, CheckCircle2, XCircle, Clock, Plus, Pencil, Loader2, Search } from 'lucide-react';
+import { Sprout, CheckCircle2, XCircle, Clock, Plus, Pencil, Loader2, Search, Trash2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { useUserRole } from '@/hooks/useUserRole';
 import { SupabaseReproductionRepository } from '@/repositories/supabase/ReproductionRepository';
 import type {
   GestationStatus,
@@ -35,9 +36,14 @@ function resultingBreed(ev: ReproductiveEventWithRelations) {
 
 function crossTitle(ev: ReproductiveEventWithRelations) {
   const f = ev.female_animal?.name?.trim() || ev.female_animal?.code || 'Hembra';
-  const m = ev.male_animal
-    ? ev.male_animal.name?.trim() || ev.male_animal.code
-    : ev.male_external?.trim() || '—';
+  let m: string;
+  if (ev.male_animal) {
+    m = ev.male_animal.name?.trim() || ev.male_animal.code;
+  } else if (ev.father_external?.trim()) {
+    m = ev.father_external.trim();
+  } else {
+    m = 'Sin padre registrado';
+  }
   return `${f} × ${m}`;
 }
 
@@ -69,25 +75,25 @@ function getStatusBadge(status: GestationStatus) {
 
 export default function ReproduccionPage() {
   const [repo] = useState(() => new SupabaseReproductionRepository(createClient()));
+  const userRole = useUserRole();
+  const isAdmin = userRole === 'ADMINISTRADOR';
+
   const [rows, setRows] = useState<ReproductiveEventWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [statusEvent, setStatusEvent] = useState<ReproductiveEventWithRelations | null>(null);
 
-  // ── Filtros ──
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('todas');
   const [filterType, setFilterType] = useState('all');
 
-  // Debounce búsqueda
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchInput), 300);
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // Escuchar búsqueda global del Header
   useEffect(() => {
     const handler = (e: Event) => setSearchInput((e as CustomEvent).detail.term);
     window.addEventListener('global-search', handler);
@@ -109,37 +115,44 @@ export default function ReproduccionPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Filtrado cliente ──
+  const handleDelete = useCallback(async (id: string) => {
+    if (!confirm('¿Eliminar este cruce? Esta acción no se puede deshacer.')) return;
+    try {
+      const res = await fetch(`/api/reproduction/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const { error } = await res.json();
+        throw new Error(error);
+      }
+      await load();
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  }, [load]);
+
   const filtered = useMemo(() => {
     let result = rows;
-
     if (filterStatus !== 'todas') {
       result = result.filter(r => r.gestation_status === filterStatus);
     }
-
     if (filterType !== 'all') {
       result = result.filter(r => r.event_type === filterType);
     }
-
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.toLowerCase();
       result = result.filter(r => {
         const title = crossTitle(r).toLowerCase();
         const femCode = r.female_animal?.code?.toLowerCase() ?? '';
         const malCode = r.male_animal?.code?.toLowerCase() ?? '';
-        const ext = r.male_external?.toLowerCase() ?? '';
+        const ext = r.father_external?.toLowerCase() ?? '';
         return title.includes(q) || femCode.includes(q) || malCode.includes(q) || ext.includes(q);
       });
     }
-
     return result;
   }, [rows, filterStatus, filterType, debouncedSearch]);
 
-  // ── KPIs (sobre todos los datos, no sobre el filtrado) ──
   const completedCount = rows.filter(r => r.gestation_status === 'parto_exitoso').length;
-  const inProgressCount = rows.filter(r => ['en_seguimiento', 'confirmada'].includes(r.gestation_status)).length;
+  const inProgressCount = rows.filter(r => ['en_seguimiento', 'confirmada'].includes(r.gestation_status ?? '')).length;
   const failureCount = rows.filter(r => r.gestation_status === 'fallida').length;
-
   const hasActiveFilters = searchInput || filterStatus !== 'todas' || filterType !== 'all';
 
   const columns: Column<ReproductiveEventWithRelations>[] = [
@@ -151,7 +164,11 @@ export default function ReproduccionPage() {
           <span className="font-extrabold text-gray-900">{crossTitle(r)}</span>
           <span className="text-xs font-bold text-gray-400">
             Hembra: {r.female_animal?.code ?? '—'}
-            {r.male_animal ? ` · Macho: ${r.male_animal.code}` : r.male_external ? ` · Externo: ${r.male_external}` : ''}
+            {r.male_animal
+              ? ` · Macho: ${r.male_animal.code}`
+              : r.father_external
+                ? ` · Externo: ${r.father_external}`
+                : ''}
           </span>
         </div>
       ),
@@ -174,30 +191,52 @@ export default function ReproduccionPage() {
     {
       key: 'est',
       header: 'Parto estimado',
-      render: (r) => <span className="font-medium text-gray-600">{formatDate(r.estimated_birth_date)}</span>,
+      render: (r) => {
+        const from = formatDate(r.estimated_delivery_date);
+        const to = formatDate((r as any).estimated_delivery_date_to);
+        if (from === '—') return <span className="font-medium text-gray-400">—</span>;
+        if (to === '—') return <span className="font-medium text-gray-600">{from}</span>;
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium text-gray-600 text-xs">{from}</span>
+            <span className="text-[10px] text-gray-400 font-bold">→ {to}</span>
+          </div>
+        );
+      },
     },
     {
       key: 'status',
       header: 'Estado de gestación',
-      render: (r) => getStatusBadge(r.gestation_status),
+      render: (r) => getStatusBadge(r.gestation_status ?? 'en_seguimiento'),
     },
     {
       key: 'effectiveness',
       header: 'Resultado',
-      render: (r) => effectivenessCell(r.gestation_status),
+      render: (r) => effectivenessCell(r.gestation_status ?? 'en_seguimiento'),
     },
     {
       key: 'actions',
       header: '',
-      className: 'w-28',
+      className: 'w-40',
       render: (r) => (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setStatusEvent(r); }}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-extrabold text-[var(--brand)] hover:bg-gray-50 transition-colors"
-        >
-          <Pencil size={14} /> Estado
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setStatusEvent(r); }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-extrabold text-[var(--brand)] hover:bg-gray-50 transition-colors"
+          >
+            <Pencil size={14} /> Estado
+          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-extrabold text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
       ),
     },
   ];
@@ -255,10 +294,7 @@ export default function ReproduccionPage() {
 
         {/* ── Panel de filtros ── */}
         <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border border-black/5 space-y-4">
-
-          {/* Fila 1: búsqueda + estado + tipo */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Búsqueda */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -269,8 +305,6 @@ export default function ReproduccionPage() {
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-black/5 rounded-xl font-medium text-gray-700 outline-none focus:border-[var(--brand)] transition-colors"
               />
             </div>
-
-            {/* Estado de gestación */}
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
@@ -282,8 +316,6 @@ export default function ReproduccionPage() {
               <option value="fallida">Fallida</option>
               <option value="parto_exitoso">Parto exitoso</option>
             </select>
-
-            {/* Tipo de evento */}
             <select
               value={filterType}
               onChange={e => setFilterType(e.target.value)}
@@ -293,11 +325,9 @@ export default function ReproduccionPage() {
               <option value="monta_natural">Monta natural</option>
               <option value="inseminacion_artificial">Inseminación artificial</option>
             </select>
-
             <div />
           </div>
 
-          {/* Fila 2: KPI inline + limpiar */}
           <div className="flex items-center justify-between pt-4 border-t border-gray-100 flex-wrap gap-3">
             <div>
               {hasActiveFilters && (

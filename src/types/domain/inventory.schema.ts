@@ -35,28 +35,22 @@ export const SupplySchema = z.object({
   registered_by: z.string().uuid(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional()
-}).refine(data => {
-  // RF019 rules: medicamentos should have expiry_date
-  // But we don't have category string directly here, so the DB trigger handles it.
-  return true;
 });
 
 export const CreateSupplySchema = SupplySchema.omit({
   id: true,
-  code: true, 
-  current_stock: true, 
+  code: true,
+  current_stock: true,
   created_at: true,
   updated_at: true
 }).extend({
-  // En creación podríamos querer iniciar con un stock inicial que internamente crearía un movimiento.
-  // Por ahora lo inicializaremos en 0 o pasamos stock si la interfaz lo requiere.
   initial_stock: z.number().min(0).default(0).optional()
 });
 
 export const UpdateSupplySchema = SupplySchema.omit({
   id: true,
   code: true,
-  current_stock: true, 
+  current_stock: true,
   created_at: true,
   updated_at: true,
   registered_by: true

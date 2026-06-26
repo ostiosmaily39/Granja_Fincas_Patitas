@@ -23,6 +23,7 @@ export interface SupplyListRow {
   expiry_date: string | null;
   unit_price: number | null;
   category_name: string;
+  created_at: string;
 }
 
 export type CreateSupplyInput = {
@@ -136,6 +137,7 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
         expiry_date: (row.expiry_date as string | null) ?? null,
         unit_price: row.unit_price != null ? Number(row.unit_price) : null,
         category_name: sc?.name ?? '—',
+        created_at: String(row.created_at ?? ''),
       };
     });
   }
@@ -200,6 +202,7 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
         expiry_date: (row.expiry_date as string | null) ?? null,
         unit_price: row.unit_price != null ? Number(row.unit_price) : null,
         category_name: sc?.name ?? '—',
+        created_at: String(row.created_at ?? ''),
       };
     });
 

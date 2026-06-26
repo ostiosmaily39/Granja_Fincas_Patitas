@@ -11,6 +11,8 @@ import {
   toDbHealthStatus,
   toDbReproductiveStatus,
   toDbVaccinationStatus,
+  toDbAnimalStatus,
+  toDbEgressReason,
   type DbAnimalOrigin,
 } from '@/lib/animals-db-map';
 
@@ -77,7 +79,6 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
       query = query.eq('species_id', species);
     }
 
-    // ✅ CORRECCIÓN: Convertir el valor del frontend al formato de la base de datos
     if (healthStatus && healthStatus !== 'all') {
       const dbHealthStatus = toDbHealthStatus(healthStatus);
       query = query.eq('health_status', dbHealthStatus);
@@ -155,7 +156,7 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
       throw new Error('Especie no encontrada o error de base de datos.');
     }
 
-    const origin: DbAnimalOrigin = payload.origin ?? 'adquirido_externo';
+    const origin: DbAnimalOrigin = (payload.origin ?? 'adquirido_externo') as DbAnimalOrigin;
 
     const birthDate = payload.birth_date?.trim() || null;
     let acquisitionDate = payload.acquisition_date?.trim() || null;
@@ -180,14 +181,12 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
         ? payload.breed_id
         : null;
 
-    const nameTrim = payload.name?.trim();
-    const notesTrim = payload.notes?.trim();
-    const noteLines: string[] = [];
-    if (nameTrim) noteLines.push(`Apodo: ${nameTrim}`);
-    if (notesTrim) noteLines.push(notesTrim);
-    const combinedNotes = noteLines.length ? noteLines.join('\n\n') : null;
+    const nameTrim = payload.name?.trim() || null;
+    const notesTrim = payload.notes?.trim() || null;
+    const combinedNotes = notesTrim || null;
 
     const animalToInsert: Record<string, unknown> = {
+      name: nameTrim,
       species_id: payload.species_id,
       breed_id: breedId,
       sex: payload.sex,
@@ -224,9 +223,60 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
   }
 
   async update(id: string, payload: Partial<Animal>): Promise<Animal> {
+    const existing = await this.getById(id);
+    if (!existing) {
+      throw new Error('Animal no encontrado');
+    }
+
+    const updateData: Record<string, unknown> = {};
+
+    if (payload.breed_id !== undefined) {
+      updateData.breed_id = payload.breed_id || null;
+    }
+    if (payload.current_weight_kg !== undefined) {
+      updateData.current_weight_kg = payload.current_weight_kg;
+    }
+    if (payload.health_status !== undefined) {
+      updateData.health_status = toDbHealthStatus(payload.health_status);
+    }
+    if (payload.vaccination_status !== undefined) {
+      updateData.vaccination_status = toDbVaccinationStatus(payload.vaccination_status);
+    }
+    if (payload.reproductive_status !== undefined) {
+      updateData.reproductive_status = toDbReproductiveStatus(
+        payload.reproductive_status,
+        existing.sex
+      );
+    }
+    if (payload.status !== undefined) {
+      updateData.status = toDbAnimalStatus(payload.status);
+      const egressReason = toDbEgressReason(payload.status);
+      if (egressReason) {
+        updateData.egress_reason = egressReason;
+        updateData.egress_date = new Date().toISOString().slice(0, 10);
+      } else if (payload.status === 'activo') {
+        updateData.egress_reason = null;
+        updateData.egress_date = null;
+        // ✅ CORRECCIÓN: Usar Record<string, unknown> para evitar errores de tipo
+        updateData.egress_notes = null;
+      }
+    }
+    if (payload.notes !== undefined) {
+      updateData.notes = payload.notes;
+    }
+    if (payload.name !== undefined) {
+      updateData.name = payload.name?.trim() || null;
+    }
+    // ✅ CORRECCIÓN: Usar Record<string, unknown> para egress_notes
+    if ((payload as any).egress_notes !== undefined) {
+      updateData.egress_notes = (payload as any).egress_notes;
+    }
+
+    updateData.updated_at = new Date().toISOString();
+
     const { data, error } = await this.supabase
       .from('animals')
-      .update(payload)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -239,10 +289,13 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
   }
 
   async changeStatus(id: string, newStatus: Animal['status'], notes?: string): Promise<Animal> {
-    const updateData: Partial<Animal> = { status: newStatus };
+    const updateData: Partial<Animal> = { 
+      status: newStatus 
+    };
+    
     if (newStatus === 'descartado' || newStatus === 'vendido' || newStatus === 'muerto') {
-      updateData.egress_date = new Date().toISOString();
-      if (notes) updateData.egress_notes = notes;
+      (updateData as any).egress_date = new Date().toISOString();
+      if (notes) (updateData as any).egress_notes = notes;
     }
 
     return this.update(id, updateData);

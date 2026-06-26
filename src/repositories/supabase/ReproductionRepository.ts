@@ -1,61 +1,93 @@
-
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { IReproductionRepository } from '../IReproductionRepository';
 import type {
-  CreateReproductiveEventDTO,
   ReproductiveEvent,
   ReproductiveEventWithRelations,
   ReproductiveAnimalMini,
-  UpdateReproductiveEventDTO,
-  CreateReproductiveEventInput,
+  CreateReproductiveEventDTO,
+  UpdateGestationStatusDTO,
 } from '@/types/domain/reproduction.schema';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import {
-  getReproEventAnimalColumnNames,
-  rowToReproductiveEvent,
-} from '@/lib/reproductive-events-columns';
+import { REPRO_COLS } from '@/lib/repro-columns';
 
-/** Une filas de eventos con un mapa id → animal (evita embed PostgREST si no hay FK en caché). */
+// ─── Helper: une filas con mapa de animales ───────────────────────────────────
+
 function attachAnimals(
   rows: ReproductiveEvent[],
   byId: Map<string, ReproductiveAnimalMini>
 ): ReproductiveEventWithRelations[] {
   return rows.map((row) => ({
     ...row,
-    female_animal: row.female_animal_id ? byId.get(row.female_animal_id) ?? null : null,
-    male_animal: row.male_animal_id ? byId.get(row.male_animal_id) ?? null : null,
+    female_animal: row.animal_id ? (byId.get(row.animal_id) ?? null) : null,
+    male_animal: row.father_id ? (byId.get(row.father_id) ?? null) : null,
   }));
 }
 
-export class SupabaseReproductionRepository implements IReproductionRepository {
-  constructor(private supabase: SupabaseClient) { }
+// ─── Helper: convierte fila cruda de PostgREST al tipo interno ────────────────
 
-  private async requireRegisteredBy(): Promise<string> {
-    const { data: auth, error: authErr } = await this.supabase.auth.getUser();
-    if (authErr || !auth.user?.id) {
-      throw new Error('Debes iniciar sesión para registrar eventos reproductivos.');
-    }
-    return auth.user.id;
+function rowToEvent(r: Record<string, unknown>): ReproductiveEvent {
+  return {
+    id: String(r.id),
+    animal_id: String(r[REPRO_COLS.female]),
+    father_id: r[REPRO_COLS.father] ? String(r[REPRO_COLS.father]) : null,
+    father_external: (r[REPRO_COLS.fatherExt] as string | null) ?? null,
+    event_type: r[REPRO_COLS.eventType] as any,
+    event_date: String(r.event_date),
+    gestation_status: (r[REPRO_COLS.status] as any) ?? undefined,
+    estimated_delivery_date: r[REPRO_COLS.estimated] ? String(r[REPRO_COLS.estimated]) : null,
+    estimated_delivery_date_to: r.estimated_delivery_date_to ? String(r.estimated_delivery_date_to) : null,
+    responsible: r[REPRO_COLS.responsible] ? String(r[REPRO_COLS.responsible]) : undefined,
+    registered_by: r[REPRO_COLS.registeredBy] ? String(r[REPRO_COLS.registeredBy]) : undefined,
+    notes: (r.notes as string | null) ?? null,
+    created_at: r.created_at as string | undefined,
+    updated_at: r.updated_at as string | undefined,
+  };
+}
+
+// ─── Helper: obtiene UUID del usuario autenticado ─────────────────────────────
+
+async function requireAuth(supabase: SupabaseClient): Promise<string> {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user?.id) {
+    throw new Error('Debes iniciar sesión para registrar eventos reproductivos.');
   }
+  return data.user.id;
+}
 
-  async listAnimalsBySex(sex: 'macho' | 'hembra'): Promise<ReproductiveAnimalMini[]> {
-    const { data, error } = await this.supabase
-      .from('animals')
-      .select(`id, code, name, species_id, breed:breed_id ( name )`)
-      .eq('sex', sex)
-      .eq('status', 'activo')
-      .order('code');
+// ─── Helper: carga animales por IDs y devuelve mapa id → mini ────────────────
 
-    if (error) throw new Error(`Error al cargar animales: ${error.message}`);
-    return (data ?? []).map((a: any) => ({
+async function loadAnimalsMap(
+  supabase: SupabaseClient,
+  ids: string[]
+): Promise<Map<string, ReproductiveAnimalMini>> {
+  if (ids.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('animals')
+    .select('id, code, name, species_id, breed:breed_id(name)')
+    .in('id', ids);
+
+  if (error) throw new Error(`Error al cargar animales: ${error.message}`);
+
+  const map = new Map<string, ReproductiveAnimalMini>();
+  for (const a of data ?? []) {
+    map.set(a.id, {
       id: a.id,
       code: a.code,
       name: a.name,
       species_id: a.species_id,
-      breed: Array.isArray(a.breed) ? a.breed[0] : a.breed || null
-    })) as ReproductiveAnimalMini[];
+      breed: Array.isArray(a.breed) ? a.breed[0] : a.breed ?? null,
+    });
   }
+  return map;
+}
+
+// ─── Repositorio ──────────────────────────────────────────────────────────────
+
+export class SupabaseReproductionRepository implements IReproductionRepository {
+  constructor(private supabase: SupabaseClient) { }
 
   async list(): Promise<ReproductiveEventWithRelations[]> {
+<<<<<<< HEAD
   const { data: rows, error } = await this.supabase
     .from('reproductive_events')
     .select(`
@@ -130,20 +162,65 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
   async create(payload: CreateReproductiveEventDTO): Promise<ReproductiveEvent> {
     const registered_by = await this.requireRegisteredBy();
     const cols = await getReproEventAnimalColumnNames(this.supabase);
+=======
+    const { data, error } = await this.supabase
+      .from('reproductive_events')
+      .select('*')
+      .order('event_date', { ascending: false });
+
+    if (error) throw new Error(`Error al cargar eventos: ${error.message}`);
+
+    const rows = (data ?? []).map(rowToEvent);
+
+    const ids = new Set<string>();
+    for (const e of rows) {
+      if (e.animal_id) ids.add(e.animal_id);
+      if (e.father_id) ids.add(e.father_id);
+    }
+
+    const byId = await loadAnimalsMap(this.supabase, [...ids]);
+    return attachAnimals(rows, byId);
+  }
+
+  async listByAnimal(animalId: string): Promise<ReproductiveEventWithRelations[]> {
+    const { data, error } = await this.supabase
+      .from('reproductive_events')
+      .select('*')
+      .or(`${REPRO_COLS.female}.eq.${animalId},${REPRO_COLS.father}.eq.${animalId}`)
+      .order('event_date', { ascending: false });
+
+    if (error) throw new Error(`Error al cargar historial: ${error.message}`);
+
+    const rows = (data ?? []).map(rowToEvent);
+
+    const ids = new Set<string>();
+    for (const e of rows) {
+      if (e.animal_id) ids.add(e.animal_id);
+      if (e.father_id) ids.add(e.father_id);
+    }
+
+    const byId = await loadAnimalsMap(this.supabase, [...ids]);
+    return attachAnimals(rows, byId);
+  }
+
+  async create(input: CreateReproductiveEventDTO): Promise<ReproductiveEvent> {
+    const registered_by = await requireAuth(this.supabase);
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
 
     const { data: active } = await this.supabase
       .from('reproductive_events')
       .select('id')
-      .eq(cols.female, payload.female_animal_id)
-      .in('gestation_status', ['en_seguimiento', 'confirmada'])
+      .eq(REPRO_COLS.female, input.animal_id)
+      .in(REPRO_COLS.status, ['en_seguimiento', 'confirmada'])
       .maybeSingle();
 
     if (active) {
       throw new Error(
-        'Esta hembra ya tiene una gestación activa. Actualice ese evento antes de crear otro.'
+        'Esta hembra ya tiene una gestación activa. Actualice ese evento antes de crear uno nuevo.'
       );
     }
 
+<<<<<<< HEAD
     const male_animal_id = payload.male_animal_id?.trim() || null;
     const male_external = payload.male_external?.trim() || null;
 
@@ -177,59 +254,63 @@ if (cols.male) {
   row[cols.male] = male_animal_id;
 }
 
+=======
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
     const { data, error } = await this.supabase
       .from('reproductive_events')
-      .insert(row)
+      .insert({
+        [REPRO_COLS.female]: input.animal_id,
+        [REPRO_COLS.father]: input.father_id ?? null,
+        [REPRO_COLS.fatherExt]: input.father_external?.trim() || null,
+        [REPRO_COLS.eventType]: input.event_type,
+        event_date: input.event_date,
+        [REPRO_COLS.status]: 'en_seguimiento',
+        [REPRO_COLS.responsible]: input.responsible.trim(),
+        [REPRO_COLS.registeredBy]: registered_by,
+        notes: input.notes?.trim() || null,
+      })
       .select('*')
       .single();
 
     if (error) throw new Error(`Error al crear el evento: ${error.message}`);
 
-    // INTEGRACIÓN FASE 4: Actualizar estado de la hembra y registrar en historial
-    const femaleId = payload.female_animal_id;
     await Promise.all([
-      // 1. Marcar hembra como "en gestión" (Valor sincronizado con DB)
       this.supabase
         .from('animals')
         .update({ reproductive_status: 'en_gestion' })
-        .eq('id', femaleId),
-      // 2. Registrar evento en el historial del animal para trazabilidad
+        .eq('id', input.animal_id),
+
       this.supabase.from('animal_events').insert({
-        animal_id: femaleId,
+        animal_id: input.animal_id,
         event_type: 'reproductivo',
         event_date: new Date().toISOString(),
-        title: 'Inicio de gestión reproductiva',
-        description: `Evento tipo ${payload.event_type.replace('_', ' ')}. Macho: ${payload.male_animal_id || payload.male_external || 'No especificado'}`,
+        title: `Inicio de ${input.event_type === 'monta_natural' ? 'monta natural' : 'inseminación artificial'}`,
+        description: `Responsable: ${input.responsible}. Padre: ${input.father_id ?? input.father_external ?? 'No especificado'}.`,
         reference_id: data.id,
         reference_table: 'reproductive_events',
         performed_by: registered_by,
       }),
     ]);
 
-    return rowToReproductiveEvent(data as Record<string, unknown>, cols);
+    return rowToEvent(data as Record<string, unknown>);
   }
 
-  async update(id: string, payload: UpdateReproductiveEventDTO): Promise<ReproductiveEvent> {
-    await this.requireRegisteredBy();
+  async update(id: string, input: UpdateGestationStatusDTO): Promise<ReproductiveEvent> {
+    const registered_by = await requireAuth(this.supabase);
 
-    const cols = await getReproEventAnimalColumnNames(this.supabase);
     const patch: Record<string, unknown> = {
-      [cols.status]: payload.gestation_status,
+      [REPRO_COLS.status]: input.gestation_status,
       updated_at: new Date().toISOString(),
+      failure_reason: input.gestation_status === 'fallida'
+        ? (input.failure_reason?.trim() || null)
+        : null,
     };
 
-    if (payload.gestation_status === 'fallida') {
-      patch.failure_reason = payload.failure_reason?.trim() || null;
-    } else {
-      patch.failure_reason = null;
+    if (input.estimated_delivery_date !== undefined) {
+      patch[REPRO_COLS.estimated] = input.estimated_delivery_date?.trim() || null;
     }
-
-    if (payload.actual_birth_date !== undefined) {
-      patch.actual_birth_date = payload.actual_birth_date?.trim() || null;
-    }
-
-    if (payload.estimated_birth_date !== undefined && cols.estimated) {
-      patch[cols.estimated] = payload.estimated_birth_date?.trim() || null;
+    if (input.estimated_delivery_date_to !== undefined) {
+      patch['estimated_delivery_date_to'] = input.estimated_delivery_date_to?.trim() || null;
     }
 
     const { data, error } = await this.supabase
@@ -241,178 +322,73 @@ if (cols.male) {
 
     if (error) throw new Error(`Error al actualizar el evento: ${error.message}`);
 
-    // INTEGRACIÓN FASE 4: Actualizar estado del animal según el resultado
-    const femaleId = data[cols.female];
-    if (femaleId) {
-      if (payload.gestation_status === 'fallida') {
-        await Promise.all([
-          // Revertir estado si falla
-          this.supabase
-            .from('animals')
-            .update({ reproductive_status: 'sin_gestion_activa' })
-            .eq('id', femaleId),
-          // Registrar fallo en historial
-          this.supabase.from('animal_events').insert({
-            animal_id: femaleId,
-            event_type: 'reproductivo',
-            event_date: new Date().toISOString(),
-            title: 'Gestión reproductiva fallida',
-            description: payload.failure_reason || 'Sin motivo especificado',
-            reference_id: id,
-            reference_table: 'reproductive_events',
-            performed_by: (await this.requireRegisteredBy()), // Re-usar sesión
-          }),
-        ]);
-      } else if (payload.gestation_status === 'confirmada') {
-        // Registrar confirmación
-        await this.supabase.from('animal_events').insert({
+    const femaleId = data[REPRO_COLS.female] as string;
+
+    if (input.gestation_status === 'fallida' || input.gestation_status === 'parto_exitoso') {
+      await Promise.all([
+        this.supabase
+          .from('animals')
+          .update({ reproductive_status: 'sin_gestion_activa' })
+          .eq('id', femaleId),
+
+        this.supabase.from('animal_events').insert({
           animal_id: femaleId,
           event_type: 'reproductivo',
           event_date: new Date().toISOString(),
-          title: 'Gestión reproductiva confirmada',
-          description: 'Gestión marcada como confirmada/en seguimiento avanzado.',
+          title: input.gestation_status === 'parto_exitoso' ? 'Parto exitoso' : 'Gestación fallida',
+          description: input.failure_reason || 'Sin motivo especificado',
           reference_id: id,
           reference_table: 'reproductive_events',
-          performed_by: (await this.requireRegisteredBy()),
-        });
-      }
+          performed_by: registered_by,
+        }),
+      ]);
     }
 
-    return rowToReproductiveEvent(data as Record<string, unknown>, cols);
+    return rowToEvent(data as Record<string, unknown>);
   }
 
-  async listByAnimal(animalId: string): Promise<ReproductiveEventWithRelations[]> {
-    const cols = await getReproEventAnimalColumnNames(this.supabase);
+  async delete(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('reproductive_events')
+      .delete()
+      .eq('id', id);
 
-    // Buscar donde el animal sea hembra o sea macho
-    let query = this.supabase.from('reproductive_events').select('*');
+    if (error) throw new Error(`Error al eliminar el evento: ${error.message}`);
+  }
 
-    if (cols.male) {
-      query = query.or(`${cols.female}.eq.${animalId},${cols.male}.eq.${animalId}`);
-    } else {
-      query = query.eq(cols.female, animalId);
-    }
-
-    const { data: rows, error } = await query.order('event_date', { ascending: false });
-
-    if (error) throw new Error(`Error al cargar historial reproductivo: ${error.message}`);
-
-    const events: ReproductiveEvent[] = [];
-    for (const r of rows ?? []) {
-      try {
-        events.push(rowToReproductiveEvent(r as Record<string, unknown>, cols));
-      } catch (e) {
-        console.error('Saltando registro corrupto en historial:', e);
-      }
-    }
-
-    const ids = new Set<string>();
-    for (const e of events) {
-      if (e.female_animal_id) ids.add(e.female_animal_id);
-      if (e.male_animal_id) ids.add(e.male_animal_id);
-    }
-
-    if (ids.size === 0) {
-      return events.map((row) => ({ ...row, female_animal: null, male_animal: null }));
-    }
-
-    const { data: animals } = await this.supabase
+  async listAnimalsBySex(sex: 'hembra' | 'macho'): Promise<ReproductiveAnimalMini[]> {
+    const { data, error } = await this.supabase
       .from('animals')
-      .select('id, code, name, species_id, breed:breed_id ( name )')
-      .in('id', [...ids]);
+      .select('id, code, name, species_id, breed:breed_id(name)')
+      .eq('sex', sex)
+      .eq('status', 'activo')
+      .order('code');
 
-    const byId = new Map<string, ReproductiveAnimalMini>();
-    for (const a of animals ?? []) {
-      byId.set((a as any).id, {
-        id: a.id,
-        code: a.code,
-        name: a.name,
-        species_id: a.species_id,
-        breed: Array.isArray(a.breed) ? a.breed[0] : a.breed || null
-      } as ReproductiveAnimalMini);
-    }
+    if (error) throw new Error(`Error al cargar animales: ${error.message}`);
 
-    return attachAnimals(events, byId);
+    return (data ?? []).map((a: any) => ({
+      id: a.id,
+      code: a.code,
+      name: a.name,
+      species_id: a.species_id,
+      breed: Array.isArray(a.breed) ? a.breed[0] : a.breed ?? null,
+    }));
   }
 
-  // --- Compatibility Methods for Tab / Modals (Implementation A) ---
-
-  async getEventsByAnimal(animalId: string): Promise<ReproductiveEvent[]> {
-    try {
-      const { data, error } = await this.supabase
-        .from('reproductive_events')
-        .select('*')
-        .eq('animal_id', animalId)
-        .order('event_date', { ascending: false });
-
-      if (error) return [];
-      return data || [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  async getAllEventsWithRelations(): Promise<ReproductiveEventWithRelations[]> {
-    try {
-      // 1. Obtener todos los eventos
-      const { data: events, error: eventsErr } = await this.supabase
-        .from('reproductive_events')
-        .select('*')
-        .order('event_date', { ascending: false });
-
-      if (eventsErr || !events || events.length === 0) return [];
-
-      // 2. Obtener IDs únicos de animales involucrados
-      const animalIds = Array.from(new Set([
-        ...events.map(e => e.animal_id),
-        ...events.map(e => (e as any).father_id).filter(Boolean) as string[]
-      ]));
-
-      // 3. Obtener la información de esos animales
-      const { data: animals, error: animalsErr } = await this.supabase
-        .from('animals')
-        .select('id, code, notes, species:species_id(display_name, gestation_days, is_productive_milk), breed:breed_id(name)')
-        .in('id', animalIds);
-
-      if (animalsErr || !animals) return events.map(e => ({ ...e }));
-
-      // 4. Mapear los datos manualmente
-      return events.map(event => {
-        const animal = animals.find(a => a.id === event.animal_id);
-        const father = animals.find(a => a.id === (event as any).father_id);
-
-        return {
-          ...event,
-          animal: animal ? {
-            code: animal.code,
-            notes: animal.notes,
-            species: animal.species as any,
-            breed: animal.breed as any
-          } : null,
-          father: father ? { code: father.code } : null
-        };
-      }) as ReproductiveEventWithRelations[];
-    } catch (e) {
-      console.error('Error crítico en getAllEventsWithRelations:', e);
-      return [];
-    }
-  }
-
-  async getReproductionSummary(): Promise<{ successfulBirths: number; activeGestations: number; failures: number }> {
-    const fmt = (err: { message?: string; code?: string; details?: string } | null) =>
-      err ? [err.message, err.code, err.details].filter(Boolean).join(' — ') : '';
-
+  async getReproductionSummary(): Promise<{
+    successfulBirths: number;
+    activeGestations: number;
+    failures: number;
+  }> {
     const [
-      { count: births, error: errB },
-      { count: gestations, error: errG },
-      { count: aborts, error: errA },
-      { count: negatives, error: errN },
+      { count: births, error: e1 },
+      { count: gestations, error: e2 },
+      { count: failures, error: e3 },
     ] = await Promise.all([
       this.supabase
         .from('reproductive_events')
         .select('*', { count: 'exact', head: true })
-        .eq('event_type', 'parto'),
-      // En BD el dominio UI "gestante" se guarda como en_gestion (animals-db-map / enum GRANJA_DB)
+        .eq(REPRO_COLS.status, 'parto_exitoso'),
       this.supabase
         .from('animals')
         .select('*', { count: 'exact', head: true })
@@ -422,31 +398,20 @@ if (cols.male) {
       this.supabase
         .from('reproductive_events')
         .select('*', { count: 'exact', head: true })
-        .eq('event_type', 'aborto'),
-      this.supabase
-        .from('reproductive_events')
-        .select('*', { count: 'exact', head: true })
-        .eq('event_type', 'diagnostico')
-        .eq('result', 'negativo'),
+        .eq(REPRO_COLS.status, 'fallida'),
     ]);
 
-    const warnParts = [
-      errB && `partos: ${fmt(errB)}`,
-      errG && `gestaciones: ${fmt(errG)}`,
-      errA && `abortos: ${fmt(errA)}`,
-      errN && `diagn. negativos: ${fmt(errN)}`,
-    ].filter(Boolean);
-
-    if (warnParts.length) {
-      console.warn('[reproducción] resumen:', warnParts.join(' | '));
+    if (e1 || e2 || e3) {
+      console.warn('[reproducción] error en resumen:', e1?.message, e2?.message, e3?.message);
     }
 
     return {
-      successfulBirths: errB ? 0 : (births ?? 0),
-      activeGestations: errG ? 0 : (gestations ?? 0),
-      failures: (errA ? 0 : (aborts ?? 0)) + (errN ? 0 : (negatives ?? 0)),
+      successfulBirths: births ?? 0,
+      activeGestations: gestations ?? 0,
+      failures: failures ?? 0,
     };
   }
+<<<<<<< HEAD
 
   async registerEvent(input: CreateReproductiveEventInput): Promise<ReproductiveEvent> {
     const { data: { user }, error: authError } = await this.supabase.auth.getUser();
@@ -506,3 +471,6 @@ const { data, error } = await this.supabase
   }
 }
 
+=======
+}
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62

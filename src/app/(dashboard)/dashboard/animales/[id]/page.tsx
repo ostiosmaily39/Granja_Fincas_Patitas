@@ -5,9 +5,24 @@ import { useParams, useRouter } from 'next/navigation';
 import { RoleGuard } from '@/components/RoleGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  ArrowLeft, Activity, Scale, UserCheck, Heart, Calendar,
-  Loader2, ClipboardList, Utensils, PlusCircle, History, Syringe, Edit3,
-  TrendingUp
+  ArrowLeft,
+  Activity,
+  Scale,
+  UserCheck,
+  Heart,
+  Calendar,
+  Loader2,
+  ClipboardList,
+  Utensils,
+  PlusCircle,
+  History,
+  Syringe,
+  Edit3,
+  TrendingUp,
+  CheckCircle,
+  CalendarDays,
+  FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { SupabaseAnimalRepository } from '@/repositories/supabase/AnimalRepository';
@@ -26,9 +41,48 @@ import VaccinationTimeline from '@/components/animales/VaccinationTimeline';
 import ServiceModal from '@/components/animales/ServiceModal';
 import AnimalTimeline from '@/components/animales/AnimalTimeline';
 import AnimalEditModal from '@/components/animales/AnimalEditModal';
+import EgressModal from '@/components/animales/EgressModal';
+import { StatusCard } from '@/components/animales/StatusCard';
+import { ActionButton } from '@/components/animales/ActionButton';
+import { MoreDropdown } from '@/components/animales/MoreDropdown';
 
 type TabType = 'info' | 'health' | 'feeding' | 'production' | 'repro';
 type TimelineCategory = 'all' | 'salud' | 'vacunacion' | 'alimentacion' | 'otros';
+
+const formatDate = (date: string | null | undefined) => {
+  if (!date) return '—';
+  return new Date(date).toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
+const getStatusVariant = (value: string): 'success' | 'warning' | 'danger' | 'neutral' => {
+  const statusMap: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
+    sano: 'success',
+    al_dia: 'success',
+    activo: 'success',
+    apto: 'success',
+    gestante: 'success',
+    lactante: 'success',
+    sin_gestion_activa: 'neutral',
+    en_gestion: 'warning',
+    en_parto: 'warning',
+    enfermo: 'danger',
+    en_tratamiento: 'warning',
+    cuarentena: 'warning',
+    cronico: 'danger',
+    fallecido: 'danger',
+    pendiente: 'warning',
+    vencido: 'danger',
+    no_aplica: 'neutral',
+    vendido: 'warning',
+    muerto: 'danger',
+    descartado: 'danger',
+  };
+  return statusMap[value] || 'neutral';
+};
 
 export default function AnimalDetailPage() {
   const params = useParams();
@@ -50,14 +104,12 @@ export default function AnimalDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // ✅ Filtros para SALUD (solo eventos clínicos)
   const [healthCategory, setHealthCategory] = useState<TimelineCategory>('all');
   const [healthFrom, setHealthFrom] = useState('');
   const [healthTo, setHealthTo] = useState('');
   const [healthSearch, setHealthSearch] = useState('');
   const [debouncedHealthSearch, setDebouncedHealthSearch] = useState('');
 
-  // ✅ Filtros para ALIMENTACIÓN (independientes)
   const [feedingFrom, setFeedingFrom] = useState('');
   const [feedingTo, setFeedingTo] = useState('');
   const [feedingSearch, setFeedingSearch] = useState('');
@@ -67,6 +119,7 @@ export default function AnimalDetailPage() {
   const [isVaccinationModalOpen, setIsVaccinationModalOpen] = useState(false);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isEgressModalOpen, setIsEgressModalOpen] = useState(false);
 
   const [repo] = useState(() => new SupabaseAnimalRepository(createClient()));
   const [feedingRepo] = useState(() => new SupabaseFeedingRepository(createClient()));
@@ -78,13 +131,12 @@ export default function AnimalDetailPage() {
       const data = await repo.getById(id);
       setAnimal(data);
     } catch (error) {
-      console.error("Error al cargar el animal:", error);
+      console.error('Error al cargar el animal:', error);
     } finally {
       setLoading(false);
     }
   }, [id, repo]);
 
-  // ✅ SOLO eventos de SALUD (excluyendo alimentación)
   const fetchHealthHistory = useCallback(async () => {
     if (!id) return;
     try {
@@ -96,10 +148,14 @@ export default function AnimalDetailPage() {
         search: debouncedHealthSearch.trim() || undefined,
       });
 
+<<<<<<< HEAD
       // ✅ FILTRAR: Solo eventos de salud, excluir alimentación
       const healthEvents = data.filter(event =>
         event.event_type !== 'alimentacion'
       );
+=======
+      const healthEvents = data.filter((event) => event.event_type !== 'alimentacion');
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
       setTimelineEvents(healthEvents);
     } catch (e) {
       console.error(e);
@@ -108,7 +164,6 @@ export default function AnimalDetailPage() {
     }
   }, [id, healthCategory, healthFrom, healthTo, debouncedHealthSearch]);
 
-  // ✅ SOLO eventos de ALIMENTACIÓN (independiente)
   const fetchFeedingHistory = useCallback(async () => {
     if (!id) return;
     try {
@@ -122,7 +177,6 @@ export default function AnimalDetailPage() {
     }
   }, [id, feedingRepo]);
 
-  // ✅ Fetch reproducción
   const fetchReproHistory = useCallback(async () => {
     try {
       setLoadingHistory(true);
@@ -135,7 +189,6 @@ export default function AnimalDetailPage() {
     }
   }, [id, reproRepo]);
 
-  // Debounce para búsqueda de salud
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedHealthSearch(healthSearch), 350);
     return () => window.clearTimeout(timer);
@@ -145,7 +198,6 @@ export default function AnimalDetailPage() {
     if (id) fetchAnimal();
   }, [id, fetchAnimal]);
 
-  // ✅ Cargar datos según tab activa
   useEffect(() => {
     if (activeTab === 'health') fetchHealthHistory();
     if (activeTab === 'feeding') fetchFeedingHistory();
@@ -161,22 +213,28 @@ export default function AnimalDetailPage() {
     );
   }
 
-  if (!animal) return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-      <h2 className="text-2xl font-black text-gray-800">Animal no encontrado</h2>
-      <button onClick={() => router.back()} className="text-[var(--brand)] font-bold underline">Volver al listado</button>
-    </div>
-  );
+  if (!animal)
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <h2 className="text-2xl font-black text-gray-800">Animal no encontrado</h2>
+        <button
+          onClick={() => router.back()}
+          className="text-[var(--brand)] font-bold underline"
+        >
+          Volver al listado
+        </button>
+      </div>
+    );
 
   const displayName = animal.name || animal.species?.display_name || 'Animal';
 
-  // ✅ Configuración de tabs
   const tabs = [
-    { id: 'info', label: 'Información General', icon: ClipboardList },
-    { id: 'health', label: 'Historial de Salud', icon: Heart },
+    { id: 'info', label: 'General', icon: ClipboardList },
+    { id: 'health', label: 'Salud', icon: Heart },
     { id: 'feeding', label: 'Alimentación', icon: Utensils },
     ...(animal.species?.name === 'vaca' || animal.species?.name === 'cow'
       ? [{ id: 'production', label: 'Producción', icon: TrendingUp }]
+<<<<<<< HEAD
       : []
     ),
     ...(animal?.sex === 'hembra' ? [{ id: 'repro', label: 'Reproducción', icon: History }] : [])
@@ -185,25 +243,80 @@ export default function AnimalDetailPage() {
   return (
     <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO', 'EMPLEADO']} redirectPath="/acceso-denegado">
       <div className="space-y-8 animate-fade-in pb-10">
+=======
+      : []),
+    ...(animal?.sex === 'hembra' ? [{ id: 'repro', label: 'Reproducción', icon: History }] : []),
+  ];
 
-        {/* Cabecera */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-black/5 pb-6">
-          <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="h-10 w-10 flex items-center justify-center rounded-xl bg-gray-50 border border-black/5 text-gray-500 hover:bg-gray-100 transition-colors">
-              <ArrowLeft size={20} />
+  const dropdownItems = [
+    {
+      label: 'Registrar Servicio',
+      icon: Activity,
+      action: () => setIsServiceModalOpen(true),
+      disabled: animal?.sex !== 'hembra',
+    },
+    {
+      label: 'Historial Completo',
+      icon: FileText,
+      action: () => setActiveTab('health'),
+    },
+    {
+      label: 'Generar Informe',
+      icon: TrendingUp,
+      action: () => alert('Próximamente: Generar informe'),
+    },
+    ...(animal?.status === 'activo'
+      ? [
+          {
+            label: 'Dar de Baja',
+            icon: AlertTriangle,
+            action: () => setIsEgressModalOpen(true),
+            danger: true,
+          },
+        ]
+      : []),
+  ];
+
+  return (
+    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO']} redirectPath="/acceso-denegado">
+      <div className="space-y-6 pb-10">
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
+
+        {/* Header Rediseñado */}
+        <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-6 space-y-4">
+          {/* Fila 1: Volver + ID */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <ArrowLeft size={16} />
+              Volver
             </button>
+            <Badge variant="neutral" className="font-mono text-xs">
+              {animal.code}
+            </Badge>
+          </div>
+
+          {/* Fila 2: Nombre + especie */}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
             <div>
-              <h1 className="text-3xl font-extrabold text-gray-900 leading-none capitalize">{displayName}</h1>
-              <div className="flex items-center gap-3 mt-2">
-                <Badge variant="neutral">{animal.code}</Badge>
-                <span className="text-sm font-bold text-gray-400">•</span>
-                <span className="text-sm font-bold text-gray-500">
-                  {animal.species?.display_name} - {animal.breed?.name || 'Mestiza'} ({animal.sex})
-                </span>
-              </div>
+              <h1 className="text-3xl md:text-4xl font-black text-gray-900 capitalize">
+                {displayName}
+              </h1>
+              <p className="text-sm text-gray-500 font-medium mt-1 flex flex-wrap items-center gap-1">
+                <span>{animal.species?.display_name || 'Especie'}</span>
+                <span className="text-gray-300">·</span>
+                <span>{animal.breed?.name || 'Mestiza'}</span>
+                <span className="text-gray-300">·</span>
+                <span className="capitalize">{animal.sex}</span>
+                <span className="text-gray-300">·</span>
+                <span>{animal.current_weight_kg || 0} kg</span>
+              </p>
             </div>
           </div>
 
+<<<<<<< HEAD
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => {
@@ -260,21 +373,95 @@ export default function AnimalDetailPage() {
               <PlusCircle size={18} />
               <span>Evento de Salud</span>
             </button>
+=======
+          {/* Fila 3: Cards de estado */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+            <StatusCard
+              label="Salud"
+              value={animal.health_status}
+              icon={Heart}
+              status={getStatusVariant(animal.health_status)}
+              onClick={() => setActiveTab('health')}
+            />
+            <StatusCard
+              label="Vacunación"
+              value={animal.vaccination_status || 'pendiente'}
+              icon={Syringe}
+              status={getStatusVariant(animal.vaccination_status || 'pendiente')}
+              onClick={() => setActiveTab('health')}
+            />
+            <StatusCard
+              label="Estado"
+              value={animal.status}
+              icon={CheckCircle}
+              status={getStatusVariant(animal.status)}
+            />
+            <StatusCard
+              label="Reproducción"
+              value={animal.reproductive_status}
+              icon={Calendar}
+              status={getStatusVariant(animal.reproductive_status)}
+              onClick={() => setActiveTab('repro')}
+            />
+            <StatusCard
+              label="Nacimiento"
+              value={formatDate(animal.birth_date)}
+              icon={CalendarDays}
+              status="neutral"
+            />
+          </div>
+
+          {/* Fila 4: Botones de acción */}
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-black/5">
+            <ActionButton
+              icon={Edit3}
+              label="Editar"
+              onClick={() => setIsEditModalOpen(true)}
+              variant="secondary"
+            />
+            <ActionButton
+              icon={Utensils}
+              label="Alimentación"
+              onClick={() => setIsFeedingModalOpen(true)}
+              variant="orange"
+            />
+            <ActionButton
+              icon={Syringe}
+              label="Vacunar"
+              onClick={() => setIsVaccinationModalOpen(true)}
+              variant="green"
+            />
+            <ActionButton
+              icon={PlusCircle}
+              label="Salud"
+              onClick={() => setIsHealthModalOpen(true)}
+              variant="primary"
+            />
+            <MoreDropdown items={dropdownItems} />
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
           </div>
         </div>
 
-        {/* ✅ Tab Navigation */}
-        <div className="flex border-b border-black/5 gap-2 overflow-x-auto scrollbar-hide">
-          {tabs.map(tab => (
+        {/* Tabs */}
+        <div className="flex border-b border-black/5 gap-1 overflow-x-auto scrollbar-hide">
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
+<<<<<<< HEAD
               className={`flex items-center gap-2 py-3 px-4 border-b-2 transition-all font-bold whitespace-nowrap ${activeTab === tab.id
                 ? 'border-[var(--brand)] text-[var(--brand)]'
                 : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
+=======
+              className={`flex items-center gap-2 py-3 px-4 border-b-2 transition-all font-bold whitespace-nowrap text-sm ${
+                activeTab === tab.id
+                  ? 'border-[var(--brand)] text-[var(--brand)]'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
             >
-              <tab.icon size={18} />
+              <tab.icon size={16} />
               {tab.label}
             </button>
           ))}
@@ -329,7 +516,7 @@ export default function AnimalDetailPage() {
           </div>
         )}
 
-        {/* ✅ Tab 2: Historial de Salud (SOLO eventos clínicos) */}
+        {/* ✅ Tab 2: Historial de Salud */}
         {activeTab === 'health' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6">
             <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
@@ -395,6 +582,7 @@ export default function AnimalDetailPage() {
                 </div>
               </div>
             </div>
+<<<<<<< HEAD
 
             {/* ✅ Timeline de salud (SOLO eventos clínicos) */}
             <div className="bg-white p-1 rounded-[2rem] shadow-sm border border-black/5 overflow-hidden">
@@ -402,11 +590,18 @@ export default function AnimalDetailPage() {
             </div>
 
             {/* ✅ Timeline de vacunas (independiente) */}
+=======
+            
+            <div className="bg-white p-1 rounded-[2rem] shadow-sm border border-black/5 overflow-hidden">
+              <AnimalTimeline events={timelineEvents} loading={loadingHistory} />
+            </div>
+            
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
             <VaccinationTimeline animalId={id} limit={5} />
           </div>
         )}
 
-        {/* ✅ Tab 3: Alimentación (SOLO alimentación) */}
+        {/* ✅ Tab 3: Alimentación */}
         {activeTab === 'feeding' && (
           <div className="animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
@@ -421,7 +616,6 @@ export default function AnimalDetailPage() {
                 Registro detallado de consumo de alimento, suplementos y cambios de dieta.
               </p>
 
-              {/* ✅ Filtros de alimentación */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
                   <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1">
@@ -459,7 +653,6 @@ export default function AnimalDetailPage() {
                 </div>
               </div>
 
-              {/* ✅ Tabla de alimentación */}
               {loadingHistory ? (
                 <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-[var(--brand)]" /></div>
               ) : feedingHistory.length === 0 ? (
@@ -578,9 +771,13 @@ export default function AnimalDetailPage() {
 
         {/* Modales */}
         <HealthEventModal
-          isOpen={isHealthModalOpen} animalId={id}
+          isOpen={isHealthModalOpen}
+          animalId={id}
           onClose={() => setIsHealthModalOpen(false)}
-          onSuccess={() => { fetchAnimal(); if (activeTab === 'health') fetchHealthHistory(); }}
+          onSuccess={() => {
+            fetchAnimal();
+            if (activeTab === 'health') fetchHealthHistory();
+          }}
         />
         <FeedingModal
           isOpen={isFeedingModalOpen}
@@ -598,7 +795,7 @@ export default function AnimalDetailPage() {
               id: animal.id,
               code: animal.code,
               name: animal.name || 'Animal',
-              species: animal.species?.display_name || 'Especie'
+              species: animal.species?.display_name || 'Especie',
             }}
             onClose={() => setIsVaccinationModalOpen(false)}
             onSuccess={() => {
@@ -623,6 +820,20 @@ export default function AnimalDetailPage() {
             isOpen={isEditModalOpen}
             animal={animal}
             onClose={() => setIsEditModalOpen(false)}
+            onSuccess={() => {
+              fetchAnimal();
+            }}
+          />
+        )}
+        {animal && (
+          <EgressModal
+            isOpen={isEgressModalOpen}
+            animal={{
+              id: animal.id,
+              name: animal.name || 'Animal',
+              code: animal.code,
+            }}
+            onClose={() => setIsEgressModalOpen(false)}
             onSuccess={() => {
               fetchAnimal();
             }}

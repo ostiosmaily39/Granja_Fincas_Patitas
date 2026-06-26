@@ -62,7 +62,7 @@ const ALERT_VARIANTS: Record<string, 'danger' | 'warning' | 'neutral'> = {
 export default function AlertasPage() {
   const [repo] = useState(() => new SupabaseInventoryRepository(createClient()));
 
-  // ── Alertas de inventario general (las que ya existían) ──
+  // ── Alertas de inventario general ──
   const [stockAlerts, setStockAlerts] = useState<StockAlertRow[]>([]);
   const [stockAlertsLoading, setStockAlertsLoading] = useState(true);
   const [stockAlertsError, setStockAlertsError] = useState<string | null>(null);
@@ -83,6 +83,7 @@ export default function AlertasPage() {
 
       if (error) throw new Error(error.message);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rows = (data ?? []).map((a: any) => ({
         id: a.id,
         supply_id: a.supplies?.id ?? '',
@@ -122,6 +123,8 @@ export default function AlertasPage() {
   }, []);
 
   useEffect(() => { void loadFoodAlerts(); }, [loadFoodAlerts]);
+
+  void repo;
 
   const handleRefresh = () => {
     void loadStockAlerts();

@@ -38,11 +38,6 @@ function resultingBreed(ev: ReproductiveEventWithRelations) {
 
 function crossTitle(ev: ReproductiveEventWithRelations) {
   const f = ev.female_animal?.name?.trim() || ev.female_animal?.code || 'Hembra';
-<<<<<<< HEAD
-  const m = ev.male_animal
-    ? ev.male_animal.name?.trim() || ev.male_animal.code
-    : (ev as any).male_external?.trim() || '—';
-=======
   let m: string;
   if (ev.male_animal) {
     m = ev.male_animal.name?.trim() || ev.male_animal.code;
@@ -51,7 +46,6 @@ function crossTitle(ev: ReproductiveEventWithRelations) {
   } else {
     m = 'Sin padre registrado';
   }
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
   return `${f} × ${m}`;
 }
 
@@ -93,7 +87,6 @@ export default function ReproduccionPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [statusEvent, setStatusEvent] = useState<ReproductiveEventWithRelations | null>(null);
 
-<<<<<<< HEAD
   // Función para verificar permisos de edición
   const canEditReproduction = (event: ReproductiveEventWithRelations) => {
     if (user?.role === 'ADMINISTRADOR' || user?.role === 'ENCARGADO') return true;
@@ -101,8 +94,6 @@ export default function ReproduccionPage() {
   };
 
   // ── Filtros ──
-=======
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('todas');
@@ -162,11 +153,7 @@ export default function ReproduccionPage() {
         const title = crossTitle(r).toLowerCase();
         const femCode = r.female_animal?.code?.toLowerCase() ?? '';
         const malCode = r.male_animal?.code?.toLowerCase() ?? '';
-<<<<<<< HEAD
-        const ext = (r as any).male_external?.toLowerCase() ?? '';
-=======
         const ext = r.father_external?.toLowerCase() ?? '';
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
         return title.includes(q) || femCode.includes(q) || malCode.includes(q) || ext.includes(q);
       });
     }
@@ -174,11 +161,7 @@ export default function ReproduccionPage() {
   }, [rows, filterStatus, filterType, debouncedSearch]);
 
   const completedCount = rows.filter(r => r.gestation_status === 'parto_exitoso').length;
-<<<<<<< HEAD
-  const inProgressCount = rows.filter(r => r.gestation_status && ['en_seguimiento', 'confirmada'].includes(r.gestation_status)).length;
-=======
   const inProgressCount = rows.filter(r => ['en_seguimiento', 'confirmada'].includes(r.gestation_status ?? '')).length;
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
   const failureCount = rows.filter(r => r.gestation_status === 'fallida').length;
   const hasActiveFilters = searchInput || filterStatus !== 'todas' || filterType !== 'all';
 
@@ -199,15 +182,11 @@ export default function ReproduccionPage() {
           <span className="font-extrabold text-gray-900">{crossTitle(r)}</span>
           <span className="text-xs font-bold text-gray-400">
             Hembra: {r.female_animal?.code ?? '—'}
-<<<<<<< HEAD
-            {r.male_animal ? ` · Macho: ${r.male_animal.code}` : (r as any).male_external ? ` · Externo: ${(r as any).male_external}` : ''}
-=======
             {r.male_animal
               ? ` · Macho: ${r.male_animal.code}`
               : r.father_external
                 ? ` · Externo: ${r.father_external}`
                 : ''}
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
           </span>
         </div>
       ),
@@ -246,52 +225,35 @@ export default function ReproduccionPage() {
     {
       key: 'status',
       header: 'Estado de gestación',
-<<<<<<< HEAD
-
-=======
       render: (r) => getStatusBadge(r.gestation_status ?? 'en_seguimiento'),
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
     },
     {
       key: 'effectiveness',
       header: 'Resultado',
-<<<<<<< HEAD
-      render: (r) => effectivenessCell(r.gestation_status || 'en_seguimiento'),
-=======
       render: (r) => effectivenessCell(r.gestation_status ?? 'en_seguimiento'),
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
     },
     {
       key: 'actions',
       header: '',
       className: 'w-40',
       render: (r) => (
-<<<<<<< HEAD
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!canEditReproduction(r)) {
-              alert('No tienes permiso para cambiar el estado de este evento. Solo puedes editar eventos que tú mismo registraste.');
-              return;
-            }
-            setStatusEvent(r);
-          }}
-          disabled={user?.role === 'EMPLEADO' && !canEditReproduction(r)}
-          className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-extrabold transition-colors ${canEditReproduction(r)
-            ? 'border-black/10 bg-white text-[var(--brand)] hover:bg-gray-50'
-            : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
-            }`}
-          title={canEditReproduction(r) ? "Actualizar estado" : "No tienes permiso"}
-        >
-          <Pencil size={14} /> Estado
-        </button>
-=======
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); setStatusEvent(r); }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-extrabold text-[var(--brand)] hover:bg-gray-50 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!canEditReproduction(r)) {
+                alert('No tienes permiso para cambiar el estado de este evento. Solo puedes editar eventos que tú mismo registraste.');
+                return;
+              }
+              setStatusEvent(r);
+            }}
+            disabled={user?.role === 'EMPLEADO' && !canEditReproduction(r)}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-extrabold transition-colors ${canEditReproduction(r)
+              ? 'border-black/10 bg-white text-[var(--brand)] hover:bg-gray-50'
+              : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+            }`}
+            title={canEditReproduction(r) ? 'Actualizar estado' : 'No tienes permiso'}
           >
             <Pencil size={14} /> Estado
           </button>
@@ -305,7 +267,6 @@ export default function ReproduccionPage() {
             </button>
           )}
         </div>
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
       ),
     },
   ];

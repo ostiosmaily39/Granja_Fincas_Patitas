@@ -57,23 +57,13 @@ export default function ReproductionStatusModal({
 
     try {
       setLoading(true);
-<<<<<<< HEAD
-
-      const payload: any = {
-        result: result,
-        estimated_delivery_date: estimatedBirthDate.trim() || null,
-        notes: notes.trim() || null,
-      };
-
-      await repo.update(event.id, payload);
-=======
       await repo.update(event.id, {
         gestation_status: gestationStatus,
         failure_reason: gestationStatus === 'fallida' ? failureReason.trim() || null : null,
         estimated_delivery_date: estimatedFrom.trim() || null,
         estimated_delivery_date_to: estimatedTo.trim() || null,
+        notes: notes.trim() || null,
       });
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
       onSuccess();
       onClose();
     } catch (err) {
@@ -174,21 +164,7 @@ export default function ReproductionStatusModal({
           />
         </div>
 
-<<<<<<< HEAD
-        <div>
-          <label className="block text-xs font-extrabold text-gray-500 uppercase tracking-widest mb-1">
-            Notas / Observaciones
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            className="w-full bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:border-[var(--brand)]"
-          />
-        </div>
 
-=======
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
         <div className="flex justify-end gap-3 pt-2">
           <button
             type="button"

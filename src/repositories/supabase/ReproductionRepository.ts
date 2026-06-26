@@ -38,6 +38,10 @@ function rowToEvent(r: Record<string, unknown>): ReproductiveEvent {
     responsible: r[REPRO_COLS.responsible] ? String(r[REPRO_COLS.responsible]) : undefined,
     registered_by: r[REPRO_COLS.registeredBy] ? String(r[REPRO_COLS.registeredBy]) : undefined,
     notes: (r.notes as string | null) ?? null,
+    // Campos de auditoría (pueden no estar presentes en todas las consultas)
+    created_by: r.created_by ? String(r.created_by) : undefined,
+    created_by_name: r.created_by_name ? String(r.created_by_name) : undefined,
+    created_by_role: r.created_by_role ? String(r.created_by_role) : undefined,
     created_at: r.created_at as string | undefined,
     updated_at: r.updated_at as string | undefined,
   };
@@ -87,88 +91,12 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
   constructor(private supabase: SupabaseClient) { }
 
   async list(): Promise<ReproductiveEventWithRelations[]> {
-<<<<<<< HEAD
-  const { data: rows, error } = await this.supabase
-    .from('reproductive_events')
-    .select(`
-      *,
-      created_by,
-      created_by_name,
-      created_by_role,
-      created_at
-    `)
-    .order('event_date', { ascending: false });
-
-  if (error) throw new Error(`Error al cargar reproducción: ${error.message}`);
-
-  const cols = await getReproEventAnimalColumnNames(this.supabase);
-  const events: ReproductiveEvent[] = [];
-
-  for (const r of rows ?? []) {
-    try {
-      events.push(rowToReproductiveEvent(r as Record<string, unknown>, cols));
-    } catch (e) {
-      console.error('Saltando registro reproductivo inválido:', e);
-    }
-  }
-
-  const ids = new Set<string>();
-  for (const e of events) {
-    if (e.female_animal_id) ids.add(e.female_animal_id);
-    if (e.male_animal_id) ids.add(e.male_animal_id);
-  }
-
-  if (ids.size === 0) {
-    return events.map((row) => ({
-      ...row,
-      female_animal: null,
-      male_animal: null,
-    }));
-  }
-
-  const { data: animals, error: animalsError } = await this.supabase
-    .from('animals')
-    .select('id, code, name, species_id, breed:breed_id ( name )')
-    .in('id', [...ids]);
-
-  if (animalsError) throw new Error(`Error al cargar animales del cruce: ${animalsError.message}`);
-
-  const byId = new Map<string, ReproductiveAnimalMini>();
-  for (const a of animals ?? []) {
-    byId.set((a as any).id, {
-      id: a.id,
-      code: a.code,
-      name: a.name,
-      species_id: a.species_id,
-      breed: Array.isArray(a.breed) ? a.breed[0] : a.breed || null
-    } as ReproductiveAnimalMini);
-  }
-
-  // Agregar campos de auditoría a los eventos
-  const eventsWithAudit = events.map((event, index) => {
-    const row = rows?.[index] as any;
-    return {
-      ...event,
-      created_by: row?.created_by,
-      created_by_name: row?.created_by_name,
-      created_by_role: row?.created_by_role,
-      created_at: row?.created_at,
-    };
-  });
-
-  return attachAnimals(eventsWithAudit, byId);
-}
-
-  async create(payload: CreateReproductiveEventDTO): Promise<ReproductiveEvent> {
-    const registered_by = await this.requireRegisteredBy();
-    const cols = await getReproEventAnimalColumnNames(this.supabase);
-=======
     const { data, error } = await this.supabase
       .from('reproductive_events')
       .select('*')
       .order('event_date', { ascending: false });
 
-    if (error) throw new Error(`Error al cargar eventos: ${error.message}`);
+    if (error) throw new Error(`Error al cargar reproducción: ${error.message}`);
 
     const rows = (data ?? []).map(rowToEvent);
 
@@ -205,8 +133,8 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
 
   async create(input: CreateReproductiveEventDTO): Promise<ReproductiveEvent> {
     const registered_by = await requireAuth(this.supabase);
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
 
+    // Verificar gestación activa existente
     const { data: active } = await this.supabase
       .from('reproductive_events')
       .select('id')
@@ -220,42 +148,13 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
       );
     }
 
-<<<<<<< HEAD
-    const male_animal_id = payload.male_animal_id?.trim() || null;
-    const male_external = payload.male_external?.trim() || null;
+    // Obtener perfil del usuario para auditoría
+    const { data: profile } = await this.supabase
+      .from('profiles')
+      .select('full_name, role')
+      .eq('id', registered_by)
+      .single();
 
-    if (!cols.male && male_animal_id) {
-      throw new Error(
-        'Esta base no tiene columna para el macho registrado; use «Padre externo / pajilla» o añade la FK en Supabase.'
-      );
-    }
-
-    // Obtener perfil del usuario
-const { data: profile } = await this.supabase
-  .from('profiles')
-  .select('full_name, role')
-  .eq('id', registered_by)
-  .single();
-
-const row: Record<string, unknown> = {
-  [cols.female]: payload.female_animal_id,
-  [cols.eventType]: payload.event_type,
-  event_date: payload.event_date,
-  [cols.maleExternal]: male_external,
-  notes: payload.notes?.trim() || null,
-  [cols.registeredBy]: registered_by,
-  [cols.status]: 'en_seguimiento' as const,
-  // Campos de auditoría
-  created_by: registered_by,
-  created_by_role: profile?.role || 'EMPLEADO',
-  created_by_name: profile?.full_name || 'Usuario',
-};
-if (cols.male) {
-  row[cols.male] = male_animal_id;
-}
-
-=======
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
     const { data, error } = await this.supabase
       .from('reproductive_events')
       .insert({
@@ -268,6 +167,10 @@ if (cols.male) {
         [REPRO_COLS.responsible]: input.responsible.trim(),
         [REPRO_COLS.registeredBy]: registered_by,
         notes: input.notes?.trim() || null,
+        // Campos de auditoría
+        created_by: registered_by,
+        created_by_role: profile?.role || 'EMPLEADO',
+        created_by_name: profile?.full_name || 'Usuario',
       })
       .select('*')
       .single();
@@ -311,6 +214,9 @@ if (cols.male) {
     }
     if (input.estimated_delivery_date_to !== undefined) {
       patch['estimated_delivery_date_to'] = input.estimated_delivery_date_to?.trim() || null;
+    }
+    if (input.notes !== undefined) {
+      patch['notes'] = input.notes?.trim() || null;
     }
 
     const { data, error } = await this.supabase
@@ -411,66 +317,4 @@ if (cols.male) {
       failures: failures ?? 0,
     };
   }
-<<<<<<< HEAD
-
-  async registerEvent(input: CreateReproductiveEventInput): Promise<ReproductiveEvent> {
-    const { data: { user }, error: authError } = await this.supabase.auth.getUser();
-    if (authError || !user) throw new Error('Debes iniciar sesión.');
-
-    // Obtener perfil del usuario
-const { data: profile } = await this.supabase
-  .from('profiles')
-  .select('full_name, role')
-  .eq('id', user.id)
-  .single();
-
-const { data, error } = await this.supabase
-  .from('reproductive_events')
-  .insert({
-    ...input,
-    registered_by: user.id,
-    // Campos de auditoría
-    created_by: user.id,
-    created_by_role: profile?.role || 'EMPLEADO',
-    created_by_name: profile?.full_name || user.email,
-  })
-  .select()
-  .single();
-
-    if (error) throw new Error(`Error al registrar: ${error.message}`);
-
-    // Registrar en línea de tiempo
-    await this.supabase.from('animal_events').insert({
-      animal_id: input.animal_id,
-      event_type: 'reproductivo',
-      event_date: input.event_date,
-      title: this.getEventTitle(input),
-      description: this.getEventDescription(input),
-      reference_id: (data as ReproductiveEvent).id,
-      reference_table: 'reproductive_events',
-      performed_by: user.id,
-    });
-
-    return data as ReproductiveEvent;
-  }
-
-  private getEventTitle(input: CreateReproductiveEventInput): string {
-    switch (input.event_type) {
-      case 'servicio': return `Servicio: ${input.service_type}`;
-      case 'diagnostico': return `Diagnóstico: ${input.result?.toUpperCase()}`;
-      case 'parto': return 'Parto';
-      case 'aborto': return 'Aborto';
-      default: return 'Evento Reproductivo';
-    }
-  }
-
-  private getEventDescription(input: CreateReproductiveEventInput): string {
-    let desc = `Responsable: ${input.responsible}`;
-    if (input.notes) desc += ` · ${input.notes}`;
-    return desc;
-  }
 }
-
-=======
-}
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62

@@ -10,17 +10,7 @@ import type {
 } from '@/types/domain/reproduction.schema';
 import { labelAnimal } from '@/types/domain/reproduction.schema';
 import { Loader2 } from 'lucide-react';
-<<<<<<< HEAD
-import { z } from 'zod';
 
-interface ReproductiveAnimalMini {
-  id: string;
-  code: string;
-  name?: string | null;
-  species_id?: string;
-}
-=======
->>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
 
 interface ReproductionEventModalProps {
   isOpen: boolean;

@@ -18,6 +18,7 @@ import {
 } from '@/repositories/supabase/InventoryRepository';
 import { createClient } from '@/utils/supabase/client';
 import CreatorBadge from '@/components/ui/CreatorBadge';
+import { useAuth } from '@/contexts/AuthContext';
 
 // ─── RF022-RF028: capa REST nueva (no toca lo de arriba) ──────────────────────
 
@@ -93,8 +94,14 @@ interface SupplyFilters {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function InsumosPage() {
+  const { user } = useAuth();
   const [repo] = useState(() => new SupabaseInventoryRepository(createClient()));
 
+  // Función para verificar permisos de edición
+  const canEditSupply = (supply: SupplyListRow) => {
+    if (user?.role === 'ADMINISTRADOR' || user?.role === 'ENCARGADO') return true;
+    return (supply as any).created_by === user?.id;
+  };
   const [supplies, setSupplies] = useState<SupplyListRow[]>([]);
   const [categories, setCategories] = useState<SupplyCategoryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -438,27 +445,27 @@ export default function InsumosPage() {
 
   const columns: Column<SupplyListRow>[] = [
     {
-  key: 'name',
-  header: 'Insumo',
-  sortable: true,
-  render: (s) => (
-    <div className="flex flex-col gap-2">
-      {/* Badge del creador - ARRIBA A LA IZQUIERDA */}
-      <CreatorBadge 
-        creatorName={s.created_by_name}
-        creatorRole={s.created_by_role}
-        createdAt={s.created_at}
-      />
-      
-      {/* Nombre del insumo */}
-      <span className="font-extrabold text-gray-900">{s.name}</span>
-      {/* Código */}
-      <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider">
-        {s.code}
-      </span>
-    </div>
-  ),
-},
+      key: 'name',
+      header: 'Insumo',
+      sortable: true,
+      render: (s) => (
+        <div className="flex flex-col gap-2">
+          {/* Badge del creador - ARRIBA A LA IZQUIERDA */}
+          <CreatorBadge
+            creatorName={s.created_by_name}
+            creatorRole={s.created_by_role}
+            createdAt={s.created_at}
+          />
+
+          {/* Nombre del insumo */}
+          <span className="font-extrabold text-gray-900">{s.name}</span>
+          {/* Código */}
+          <span className="text-[10px] font-bold text-gray-400 font-mono tracking-wider">
+            {s.code}
+          </span>
+        </div>
+      ),
+    },
     {
       key: 'category',
       header: 'Categoría',
@@ -526,7 +533,7 @@ export default function InsumosPage() {
       sortable: true,
       render: (s) => (
         <span className="text-xs font-medium text-gray-400">
-          {new Date(s.created_at).toLocaleDateString('es-CO')}
+          {s.created_at ? new Date(s.created_at).toLocaleDateString('es-CO') : '—'}
         </span>
       ),
     },
@@ -538,17 +545,37 @@ export default function InsumosPage() {
         <div className="flex items-center gap-1">
           <button
             type="button"
-            title="Editar insumo"
-            onClick={() => openEditModal(s)}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+            title={canEditSupply(s) ? "Editar insumo" : "No tienes permiso para editar"}
+            onClick={() => {
+              if (!canEditSupply(s)) {
+                alert('No tienes permiso para editar este insumo. Solo puedes editar insumos que tú mismo registraste.');
+                return;
+              }
+              openEditModal(s);
+            }}
+            disabled={user?.role === 'EMPLEADO' && !canEditSupply(s)}
+            className={`p-2 rounded-lg transition-colors ${canEditSupply(s)
+              ? 'hover:bg-gray-100 text-gray-400 hover:text-gray-700'
+              : 'text-gray-200 cursor-not-allowed'
+              }`}
           >
             <Pencil size={15} />
           </button>
           <button
             type="button"
-            title="Registrar movimiento de stock"
-            onClick={() => openStockModal(s)}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-[var(--brand)] transition-colors"
+            title={canEditSupply(s) ? "Registrar movimiento de stock" : "No tienes permiso"}
+            onClick={() => {
+              if (!canEditSupply(s)) {
+                alert('No tienes permiso para registrar movimientos en este insumo. Solo puedes registrar movimientos en insumos que tú mismo creaste.');
+                return;
+              }
+              openStockModal(s);
+            }}
+            disabled={user?.role === 'EMPLEADO' && !canEditSupply(s)}
+            className={`p-2 rounded-lg transition-colors ${canEditSupply(s)
+              ? 'hover:bg-gray-100 text-gray-400 hover:text-[var(--brand)]'
+              : 'text-gray-200 cursor-not-allowed'
+              }`}
           >
             <ArrowRightLeft size={15} />
           </button>
@@ -566,7 +593,7 @@ export default function InsumosPage() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO']} redirectPath="/acceso-denegado">
+    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO', 'EMPLEADO']} redirectPath="/acceso-denegado">
       <div className="space-y-6 animate-fade-in pb-10">
 
         <PageHeader
@@ -574,14 +601,16 @@ export default function InsumosPage() {
           description="Controla el inventario de alimentos, medicamentos y suministros. Los altas quedan en bodega (M4) y el código se genera automáticamente."
           icon={PackageSearch}
           actions={
-            <button
-              type="button"
-              onClick={handleOpenModal}
-              className="flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm"
-            >
-              <Plus size={18} />
-              <span>Nuevo insumo</span>
-            </button>
+            user?.role !== 'EMPLEADO' ? (
+              <button
+                type="button"
+                onClick={handleOpenModal}
+                className="flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm"
+              >
+                <Plus size={18} />
+                <span>Nuevo insumo</span>
+              </button>
+            ) : null
           }
         />
 
@@ -627,6 +656,7 @@ export default function InsumosPage() {
         )}
 
         {/* ── Pestañas ── */}
+        {/* ── Pestañas ── */}
         <div className="flex items-center gap-2 border-b border-gray-100">
           <button
             type="button"
@@ -638,17 +668,20 @@ export default function InsumosPage() {
           >
             Inventario actual
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('reporte')}
-            className={`px-4 py-2.5 font-bold text-sm rounded-t-xl transition-colors flex items-center gap-1.5 ${activeTab === 'reporte'
-              ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]'
-              : 'text-gray-400 hover:text-gray-600'
-              }`}
-          >
-            <FileBarChart size={14} />
-            Reporte
-          </button>
+          {/* Ocultar pestaña Reporte para EMPLEADO */}
+          {user?.role !== 'EMPLEADO' && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('reporte')}
+              className={`px-4 py-2.5 font-bold text-sm rounded-t-xl transition-colors flex items-center gap-1.5 ${activeTab === 'reporte'
+                ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]'
+                : 'text-gray-400 hover:text-gray-600'
+                }`}
+            >
+              <FileBarChart size={14} />
+              Reporte
+            </button>
+          )}
         </div>
 
         {activeTab === 'reporte' ? (

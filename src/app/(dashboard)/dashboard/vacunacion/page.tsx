@@ -11,6 +11,7 @@ import type { VaccineScheme, CreateVaccineSchemeInput } from '@/types/domain/hea
 import type { Species } from '@/types/domain/animal.schema';
 import MassVaccinationModal from '@/components/animales/MassVaccinationModal';
 import CreatorBadge from '@/components/ui/CreatorBadge';
+import { useAuth } from '@/contexts/AuthContext';
 
 type ModalMode = 'create' | 'edit';
 
@@ -25,12 +26,19 @@ const EMPTY_FORM: CreateVaccineSchemeInput = {
 };
 
 export default function VacunacionPage() {
+  const { user } = useAuth();
   const [schemes, setSchemes] = useState<VaccineScheme[]>([]);
   const [filteredSchemes, setFilteredSchemes] = useState<VaccineScheme[]>([]);
   const [species, setSpecies] = useState<Species[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Función para verificar permisos de edición
+  const canEditScheme = (scheme: VaccineScheme) => {
+    if (user?.role === 'ADMINISTRADOR' || user?.role === 'ENCARGADO') return true;
+    return (scheme as any).created_by === user?.id;
+  };
 
   // ── Filtros ──
   const [searchInput, setSearchInput] = useState('');
@@ -155,7 +163,7 @@ export default function VacunacionPage() {
   const mandatoryCount = filteredSchemes.filter(s => s.is_mandatory).length;
 
   return (
-    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO']} redirectPath="/acceso-denegado">
+    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO', 'EMPLEADO']} redirectPath="/acceso-denegado">
       <div className="space-y-6 animate-fade-in pb-10">
 
         <PageHeader
@@ -164,20 +172,24 @@ export default function VacunacionPage() {
           icon={Syringe}
           actions={
             <div className="flex gap-2">
-              <button
-                onClick={() => setMassVaccineOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-black/5 rounded-xl font-bold text-sm text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
-              >
-                <Syringe size={16} className="text-emerald-500" />
-                Vacunación Masiva
-              </button>
-              <button
-                onClick={openCreate}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand)] text-white rounded-xl font-bold text-sm hover:bg-[var(--brand-hover)] shadow-sm transition-all"
-              >
-                <Plus size={16} />
-                Nuevo Esquema
-              </button>
+              {user?.role !== 'EMPLEADO' && (
+                <>
+                  <button
+                    onClick={() => setMassVaccineOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-black/5 rounded-xl font-bold text-sm text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
+                  >
+                    <Syringe size={16} className="text-emerald-500" />
+                    Vacunación Masiva
+                  </button>
+                  <button
+                    onClick={openCreate}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand)] text-white rounded-xl font-bold text-sm hover:bg-[var(--brand-hover)] shadow-sm transition-all"
+                  >
+                    <Plus size={16} />
+                    Nuevo Esquema
+                  </button>
+                </>
+              )}
             </div>
           }
         />
@@ -280,17 +292,17 @@ export default function VacunacionPage() {
                   {filteredSchemes.map((s) => (
                     <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
-                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2">
                           {/* Badge del creador */}
-                          <CreatorBadge 
+                          <CreatorBadge
                             creatorName={(s as any).created_by_name}
                             creatorRole={(s as any).created_by_role}
                             createdAt={s.created_at}
                           />
-                          
+
                           {/* Nombre de la vacuna */}
                           <span className="font-black text-gray-900">{s.vaccine_name}</span>
-                      </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <Badge variant="neutral">{getSpeciesName(s.species_id)}</Badge>
@@ -310,16 +322,36 @@ export default function VacunacionPage() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => openEdit(s)}
-                            className="p-2 rounded-xl hover:bg-[var(--brand)]/10 text-gray-400 hover:text-[var(--brand)] transition-colors"
-                            title="Editar"
+                            onClick={() => {
+                              if (!canEditScheme(s)) {
+                                alert('No tienes permiso para editar este esquema. Solo puedes editar esquemas que tú mismo creaste.');
+                                return;
+                              }
+                              openEdit(s);
+                            }}
+                            disabled={user?.role === 'EMPLEADO' && !canEditScheme(s)}
+                            className={`p-2 rounded-xl transition-colors ${canEditScheme(s)
+                              ? 'hover:bg-[var(--brand)]/10 text-gray-400 hover:text-[var(--brand)]'
+                              : 'text-gray-200 cursor-not-allowed'
+                              }`}
+                            title={canEditScheme(s) ? "Editar" : "No tienes permiso"}
                           >
                             <Pencil size={15} />
                           </button>
                           <button
-                            onClick={() => handleDelete(s.id)}
-                            className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                            title="Eliminar"
+                            onClick={() => {
+                              if (!canEditScheme(s)) {
+                                alert('No tienes permiso para eliminar este esquema. Solo puedes eliminar esquemas que tú mismo creaste.');
+                                return;
+                              }
+                              handleDelete(s.id);
+                            }}
+                            disabled={user?.role === 'EMPLEADO' && !canEditScheme(s)}
+                            className={`p-2 rounded-xl transition-colors ${canEditScheme(s)
+                              ? 'hover:bg-red-50 text-gray-400 hover:text-red-500'
+                              : 'text-gray-200 cursor-not-allowed'
+                              }`}
+                            title={canEditScheme(s) ? "Eliminar" : "No tienes permiso"}
                           >
                             <Trash2 size={15} />
                           </button>

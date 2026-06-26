@@ -4,8 +4,8 @@ import type { ReproductiveEvent } from '@/types/domain/reproduction.schema';
 const FEMALE_CANDIDATES = ['animal_id', 'female_animal_id', 'female_id', 'mother_id', 'id_hembra', 'hembra_id'] as const;
 const MALE_CANDIDATES = ['father_id', 'male_animal_id', 'male_id', 'id_macho', 'macho_id'] as const;
 
-export type ReproAnimalColumnNames = { 
-  female: string; 
+export type ReproAnimalColumnNames = {
+  female: string;
   male: string | null;
   status: string;
   estimated: string | null;
@@ -49,14 +49,14 @@ export function getReproEventAnimalColumnNames(client: SupabaseClient): Promise<
         const { data, error } = await client.from('reproductive_events').select('*').limit(1).maybeSingle();
         if (!error && data) {
           const keys = Object.keys(data);
-          female = keys.find(k => FEMALE_CANDIDATES.includes(k as any)) || 
-                   keys.find(k => k.toLowerCase().includes('female') || k.toLowerCase().includes('hembra') || k.toLowerCase().includes('mother') || k.toLowerCase().includes('madre')) || 
-                   null;
-          
+          female = keys.find(k => FEMALE_CANDIDATES.includes(k as any)) ||
+            keys.find(k => k.toLowerCase().includes('female') || k.toLowerCase().includes('hembra') || k.toLowerCase().includes('mother') || k.toLowerCase().includes('madre')) ||
+            null;
+
           if (female && !male) {
-             male = keys.find(k => MALE_CANDIDATES.includes(k as any)) || 
-                    keys.find(k => (k.toLowerCase().includes('male') || k.toLowerCase().includes('macho') || k.toLowerCase().includes('father') || k.toLowerCase().includes('padre')) && k !== female) || 
-                    null;
+            male = keys.find(k => MALE_CANDIDATES.includes(k as any)) ||
+              keys.find(k => (k.toLowerCase().includes('male') || k.toLowerCase().includes('macho') || k.toLowerCase().includes('father') || k.toLowerCase().includes('padre')) && k !== female) ||
+              null;
           }
         }
       }
@@ -92,7 +92,7 @@ export function getReproEventAnimalColumnNames(client: SupabaseClient): Promise<
         // Intento final para ver qué campos tiene la tabla si es posible
         const { data: colsData } = await client.from('reproductive_events').select('*').limit(1);
         const availableFields = colsData && colsData.length > 0 ? Object.keys(colsData[0]).join(', ') : 'Ninguno (tabla vacía o ilegible)';
-        
+
         throw new Error(
           `No se encontró columna para ID de Hembra en 'reproductive_events'. Campos disponibles: [${availableFields}]. ` +
           `Buscamos: ${FEMALE_CANDIDATES.join(', ')}`
@@ -113,7 +113,7 @@ export function rowToReproductiveEvent(
   // Priorizar las columnas encontradas por el buscador dinámico, de lo contrario buscar candidatos genéricos
   const female = cols ? row[cols.female] : (row.animal_id ?? row.female_animal_id ?? row.female_id ?? row.mother_id);
   const male = cols && cols.male ? row[cols.male] : (row.father_id ?? row.male_animal_id ?? row.male_id ?? null);
-  
+
   // Mapeo dinámico de otros campos
   const resultValue = (cols ? row[cols.status] : (row.result || row.gestation_status || 'pendiente')) as any;
   const estDeliveryDate = (cols?.estimated ? row[cols.estimated] : (row.estimated_delivery_date || row.estimated_birth_date)) as string | null | undefined;
@@ -137,7 +137,7 @@ export function rowToReproductiveEvent(
     estimated_delivery_date: estDeliveryDate ? String(estDeliveryDate) : null,
     notes: (row.notes as string | null | undefined) ?? null,
     responsible: String(resp || 'Desconocido'),
-    registered_by: row.registered_by ? String(row.registered_by) : null,
+    registered_by: row.registered_by ? String(row.registered_by) : undefined,
     created_at: row.created_at as string | undefined,
     offspring_count: typeof row.offspring_count === 'number' ? row.offspring_count : 0,
   };

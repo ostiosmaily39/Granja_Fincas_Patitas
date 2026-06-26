@@ -11,8 +11,8 @@ import { z } from 'zod';
 interface ReproductiveAnimalMini {
   id: string;
   code: string;
-  name?: string;
-  species_id: string;
+  name?: string | null;
+  species_id?: string;
 }
 
 interface ReproductionEventModalProps {

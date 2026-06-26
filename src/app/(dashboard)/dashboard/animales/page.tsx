@@ -328,7 +328,7 @@ export default function AnimalesPage() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['ADMINISTRADOR']} redirectPath="/acceso-denegado">
+    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO', 'EMPLEADO']} redirectPath="/acceso-denegado">
       <div className="space-y-6 animate-fade-in pb-10">
         <PageHeader
           title="Inventario Pecuario"

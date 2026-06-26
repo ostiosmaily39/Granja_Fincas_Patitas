@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useReportes } from '@/hooks/useReportes'
+import type { VwReporteInsumos } from '@/types/domain/reporte.schema'
 
 export default function ReporteInsumos() {
   const [filtros, setFiltros] = useState({
@@ -25,13 +26,13 @@ export default function ReporteInsumos() {
     await generarReporteInsumos({
       fecha_inicio: filtros.fecha_inicio || undefined,
       fecha_fin: filtros.fecha_fin || undefined,
-      categoria: filtros.categoria as any || undefined,
-      estado: filtros.estado as any || undefined
+      categoria: filtros.categoria || undefined,
+      estado: filtros.estado || undefined
     })
   }
 
   const handleExportar = async (formato: 'PDF' | 'EXCEL' | 'CSV') => {
-    if (!reporteInsumos) {
+    if (!reporteInsumos || reporteInsumos.length === 0) {
       alert('Primero genera el reporte')
       return
     }
@@ -84,34 +85,45 @@ export default function ReporteInsumos() {
         </button>
       </div>
 
-      {reporteInsumos && (
+      {reporteInsumos && Array.isArray(reporteInsumos) && (
         <>
           <div className="mb-2 text-sm text-gray-600">
-            Total de registros: {reporteInsumos.total_registros || reporteInsumos.insumos?.length || 0}
+            Total de registros: {reporteInsumos.length}
           </div>
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-gray-100">
                 <th className="border p-2 text-left">Nombre</th>
                 <th className="border p-2 text-left">Categoría</th>
-                <th className="border p-2 text-right">Stock</th>
+                <th className="border p-2 text-right">Stock Actual</th>
+                <th className="border p-2 text-right">Stock Mínimo</th>
+                <th className="border p-2 text-left">Unidad</th>
                 <th className="border p-2 text-left">Estado</th>
+                <th className="border p-2 text-left">Vencimiento</th>
               </tr>
             </thead>
             <tbody>
-              {reporteInsumos.insumos?.map((insumo: any) => (
-                <tr key={insumo.id}>
+              {reporteInsumos.map((insumo: VwReporteInsumos) => (
+                <tr key={insumo.id_insumo}>
                   <td className="border p-2">{insumo.nombre}</td>
                   <td className="border p-2">{insumo.categoria}</td>
                   <td className="border p-2 text-right">{insumo.stock_actual}</td>
+                  <td className="border p-2 text-right">{insumo.stock_minimo}</td>
+                  <td className="border p-2">{insumo.unidad_medida}</td>
                   <td className="border p-2">
                     <span className={`px-2 py-1 rounded text-xs ${insumo.estado === 'critico' ? 'bg-red-100 text-red-700' :
-                        insumo.estado === 'bajo' ? 'bg-yellow-100 text-yellow-700' :
-                          insumo.estado === 'proximo_a_vencer' ? 'bg-orange-100 text-orange-700' :
-                            'bg-green-100 text-green-700'
+                      insumo.estado === 'bajo' ? 'bg-yellow-100 text-yellow-700' :
+                        insumo.estado === 'proximo_a_vencer' ? 'bg-orange-100 text-orange-700' :
+                          'bg-green-100 text-green-700'
                       }`}>
                       {insumo.estado?.toUpperCase() || 'NORMAL'}
                     </span>
+                  </td>
+                  <td className="border p-2">
+                    {insumo.fecha_vencimiento
+                      ? new Date(insumo.fecha_vencimiento).toLocaleDateString('es-CO')
+                      : '—'
+                    }
                   </td>
                 </tr>
               ))}
@@ -138,6 +150,13 @@ export default function ReporteInsumos() {
             </button>
           </div>
         </>
+      )}
+
+      {reporteInsumos && Array.isArray(reporteInsumos) && reporteInsumos.length === 0 && (
+        <div className="text-center py-8 text-gray-400">
+          <p className="text-lg font-bold">No hay datos para los filtros seleccionados</p>
+          <p className="text-sm">Intenta con otras fechas o categorías</p>
+        </div>
       )}
     </div>
   )

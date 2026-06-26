@@ -58,42 +58,46 @@ export default function EmpleadoProduccionPage() {
       )
     },
     {
-      key: 'date',
+      key: 'production_date',
       header: 'Fecha',
       render: (item) => (
-        <span className="text-xs font-bold text-gray-400 font-mono">{new Date(item.date).toLocaleDateString()}</span>
+        <span className="text-xs font-bold text-gray-400 font-mono">
+          {new Date(item.production_date).toLocaleDateString()}
+        </span>
       )
     }
   ];
 
   const eggColumns: Column<EggProductionRecord>[] = [
     {
-      key: 'batch_id',
+      key: 'lot_name',
       header: 'Lote',
       render: (item) => (
         <div className="flex flex-col">
           <span className="font-extrabold text-gray-900 text-sm">
-            {item.batch_id || 'Lote'}
+            {item.lot_name || 'Lote'}
           </span>
           <span className="text-[10px] font-bold text-orange-500 font-mono">ID: {item.id.slice(0, 8)}</span>
         </div>
       )
     },
     {
-      key: 'total_quantity',
+      key: 'quantity_units',
       header: 'Cantidad',
       render: (item) => (
         <div className="flex items-center gap-1">
           <Egg size={14} className="text-orange-500" />
-          <span className="text-sm font-black text-gray-900">{item.total_quantity} uds</span>
+          <span className="text-sm font-black text-gray-900">{item.quantity_units} uds</span>
         </div>
       )
     },
     {
-      key: 'date',
+      key: 'production_date',
       header: 'Fecha',
       render: (item) => (
-        <span className="text-xs font-bold text-gray-400 font-mono">{new Date(item.date).toLocaleDateString()}</span>
+        <span className="text-xs font-bold text-gray-400 font-mono">
+          {new Date(item.production_date).toLocaleDateString()}
+        </span>
       )
     }
   ];
@@ -101,7 +105,7 @@ export default function EmpleadoProduccionPage() {
   return (
     <RoleGuard allowedRoles={['ADMINISTRADOR', 'EMPLEADO', 'ENCARGADO']} redirectPath="/acceso-denegado">
       <div className="space-y-8 animate-fade-in pb-10">
-        <PageHeader 
+        <PageHeader
           title="Registro de Producción"
           description="Control de pesaje de leche y recolección de huevos diaria."
           icon={BarChart3}
@@ -122,9 +126,9 @@ export default function EmpleadoProduccionPage() {
                   <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Producción de Leche</h3>
                 </div>
               </div>
-              
+
               <div className="bg-white rounded-[2rem] shadow-sm border border-black/5 overflow-hidden">
-                <DataTable 
+                <DataTable
                   columns={milkColumns}
                   data={milkRecords}
                   keyExtractor={(item) => item.id}
@@ -142,9 +146,9 @@ export default function EmpleadoProduccionPage() {
                   <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Recolección de Huevos</h3>
                 </div>
               </div>
-              
+
               <div className="bg-white rounded-[2rem] shadow-sm border border-black/5 overflow-hidden">
-                <DataTable 
+                <DataTable
                   columns={eggColumns}
                   data={eggRecords}
                   keyExtractor={(item) => item.id}

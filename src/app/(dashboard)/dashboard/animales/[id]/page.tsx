@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { RoleGuard } from '@/components/RoleGuard';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   ArrowLeft,
   Activity,
@@ -87,6 +88,12 @@ export default function AnimalDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { id } = params as { id: string };
+  const { user, role } = useAuth();
+
+  const canEditRecord = (record: any) => {
+    if (role === 'ADMINISTRADOR' || role === 'ENCARGADO') return true;
+    return record?.created_by === user?.id;
+  };
 
   const [activeTab, setActiveTab] = useState<TabType>('info');
   const [animal, setAnimal] = useState<AnimalWithRelations | null>(null);
@@ -141,7 +148,14 @@ export default function AnimalDetailPage() {
         search: debouncedHealthSearch.trim() || undefined,
       });
 
+<<<<<<< HEAD
+      // ✅ FILTRAR: Solo eventos de salud, excluir alimentación
+      const healthEvents = data.filter(event =>
+        event.event_type !== 'alimentacion'
+      );
+=======
       const healthEvents = data.filter((event) => event.event_type !== 'alimentacion');
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
       setTimelineEvents(healthEvents);
     } catch (e) {
       console.error(e);
@@ -220,6 +234,16 @@ export default function AnimalDetailPage() {
     { id: 'feeding', label: 'Alimentación', icon: Utensils },
     ...(animal.species?.name === 'vaca' || animal.species?.name === 'cow'
       ? [{ id: 'production', label: 'Producción', icon: TrendingUp }]
+<<<<<<< HEAD
+      : []
+    ),
+    ...(animal?.sex === 'hembra' ? [{ id: 'repro', label: 'Reproducción', icon: History }] : [])
+  ];
+
+  return (
+    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO', 'EMPLEADO']} redirectPath="/acceso-denegado">
+      <div className="space-y-8 animate-fade-in pb-10">
+=======
       : []),
     ...(animal?.sex === 'hembra' ? [{ id: 'repro', label: 'Reproducción', icon: History }] : []),
   ];
@@ -256,6 +280,7 @@ export default function AnimalDetailPage() {
   return (
     <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO']} redirectPath="/acceso-denegado">
       <div className="space-y-6 pb-10">
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
 
         {/* Header Rediseñado */}
         <div className="bg-white rounded-2xl shadow-sm border border-black/5 p-6 space-y-4">
@@ -291,6 +316,64 @@ export default function AnimalDetailPage() {
             </div>
           </div>
 
+<<<<<<< HEAD
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                if (!canEditRecord(animal)) {
+                  alert('No tienes permiso para editar este animal. Solo puedes editar animales que tú mismo registraste.');
+                  return;
+                }
+                setIsEditModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-black/5 rounded-xl font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
+            >
+              <Edit3 size={18} className="text-blue-500" />
+              <span>Editar Animal</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (!canEditRecord(animal)) {
+                  alert('No tienes permiso para registrar alimentación en este animal. Solo puedes registrar en animales que tú mismo creaste.');
+                  return;
+                }
+                setIsFeedingModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-black/5 rounded-xl font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
+            >
+              <Utensils size={18} className="text-orange-500" />
+              <span>Nueva Carga Alimenticia</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (!canEditRecord(animal)) {
+                  alert('No tienes permiso para registrar vacunas en este animal. Solo puedes registrar en animales que tú mismo creaste.');
+                  return;
+                }
+                setIsVaccinationModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-black/5 rounded-xl font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition-all"
+            >
+              <Syringe size={18} className="text-green-600" />
+              <span>Registrar Vacuna</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (!canEditRecord(animal)) {
+                  alert('No tienes permiso para registrar eventos de salud en este animal. Solo puedes registrar en animales que tú mismo creaste.');
+                  return;
+                }
+                setIsHealthModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--brand)] text-white rounded-xl font-bold hover:bg-[var(--brand-hover)] shadow-sm transition-all"
+            >
+              <PlusCircle size={18} />
+              <span>Evento de Salud</span>
+            </button>
+=======
           {/* Fila 3: Cards de estado */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
             <StatusCard
@@ -355,6 +438,7 @@ export default function AnimalDetailPage() {
               variant="primary"
             />
             <MoreDropdown items={dropdownItems} />
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
           </div>
         </div>
 
@@ -364,11 +448,18 @@ export default function AnimalDetailPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabType)}
+<<<<<<< HEAD
+              className={`flex items-center gap-2 py-3 px-4 border-b-2 transition-all font-bold whitespace-nowrap ${activeTab === tab.id
+                ? 'border-[var(--brand)] text-[var(--brand)]'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+                }`}
+=======
               className={`flex items-center gap-2 py-3 px-4 border-b-2 transition-all font-bold whitespace-nowrap text-sm ${
                 activeTab === tab.id
                   ? 'border-[var(--brand)] text-[var(--brand)]'
                   : 'border-transparent text-gray-400 hover:text-gray-600'
               }`}
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
             >
               <tab.icon size={16} />
               {tab.label}
@@ -491,11 +582,21 @@ export default function AnimalDetailPage() {
                 </div>
               </div>
             </div>
+<<<<<<< HEAD
+
+            {/* ✅ Timeline de salud (SOLO eventos clínicos) */}
+            <div className="bg-white p-1 rounded-[2rem] shadow-sm border border-black/5 overflow-hidden">
+              <AnimalTimeline events={timelineEvents} loading={loadingHistory} />
+            </div>
+
+            {/* ✅ Timeline de vacunas (independiente) */}
+=======
             
             <div className="bg-white p-1 rounded-[2rem] shadow-sm border border-black/5 overflow-hidden">
               <AnimalTimeline events={timelineEvents} loading={loadingHistory} />
             </div>
             
+>>>>>>> 503c2fa89500585e208404b93b94a54312e3eb62
             <VaccinationTimeline animalId={id} limit={5} />
           </div>
         )}

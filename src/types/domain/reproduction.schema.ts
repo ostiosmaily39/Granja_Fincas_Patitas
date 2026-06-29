@@ -86,6 +86,7 @@ export const UpdateGestationStatusSchema = z.object({
   failure_reason: z.string().nullable().optional(),
   estimated_delivery_date: z.string().nullable().optional(),
   estimated_delivery_date_to: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
 });
 
 export type UpdateGestationStatusDTO = z.infer<typeof UpdateGestationStatusSchema>;

@@ -38,6 +38,8 @@ export interface Species {
   id: string;
   name: string;
   display_name: string;
+  gestation_days?: number;        // ← AGREGADO
+  is_productive_milk?: boolean;   // ← AGREGADO
   created_at: string;
   updated_at: string;
 }

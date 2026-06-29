@@ -62,6 +62,7 @@ export default function ReproductionStatusModal({
         failure_reason: gestationStatus === 'fallida' ? failureReason.trim() || null : null,
         estimated_delivery_date: estimatedFrom.trim() || null,
         estimated_delivery_date_to: estimatedTo.trim() || null,
+        notes: notes.trim() || null,
       });
       onSuccess();
       onClose();
@@ -162,6 +163,7 @@ export default function ReproductionStatusModal({
             className="w-full bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 outline-none focus:border-[var(--brand)]"
           />
         </div>
+
 
         <div className="flex justify-end gap-3 pt-2">
           <button

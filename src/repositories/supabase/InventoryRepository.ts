@@ -23,7 +23,11 @@ export interface SupplyListRow {
   expiry_date: string | null;
   unit_price: number | null;
   category_name: string;
-  created_at: string;
+  // Campos de auditoría
+  created_by?: string;
+  created_by_name?: string;
+  created_by_role?: string;
+  created_at?: string;
 }
 
 export type CreateSupplyInput = {
@@ -109,16 +113,20 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
       .from('supplies')
       .select(
         `
-        id,
-        code,
-        name,
-        unit,
-        current_stock,
-        min_stock,
-        expiry_date,
-        unit_price,
-        supply_categories ( name )
-      `
+      id,
+      code,
+      name,
+      unit,
+      current_stock,
+      min_stock,
+      expiry_date,
+      unit_price,
+      created_by,
+      created_by_name,
+      created_by_role,
+      created_at,
+      supply_categories ( name )
+    `
       )
       .eq('is_active', true)
       .order('name');
@@ -137,7 +145,11 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
         expiry_date: (row.expiry_date as string | null) ?? null,
         unit_price: row.unit_price != null ? Number(row.unit_price) : null,
         category_name: sc?.name ?? '—',
-        created_at: String(row.created_at ?? ''),
+        // Campos de auditoría
+        created_by: row.created_by as string | undefined,
+        created_by_name: row.created_by_name as string | undefined,
+        created_by_role: row.created_by_role as string | undefined,
+        created_at: row.created_at as string | undefined,
       };
     });
   }
@@ -159,26 +171,25 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
       .from('supplies')
       .select(
         `
-        id,
-        code,
-        name,
-        unit,
-        current_stock,
-        min_stock,
-        expiry_date,
-        unit_price,
-        supply_categories ( name )
-      `,
+    id,
+    code,
+    name,
+    unit,
+    current_stock,
+    min_stock,
+    expiry_date,
+    unit_price,
+    created_by,
+    created_by_name,
+    created_by_role,
+    created_at,
+    supply_categories ( name )
+  `,
         { count: 'exact' }
       )
       .eq('is_active', true)
       .order(sort, { ascending: order === 'asc' })
       .range((page - 1) * limit, page * limit - 1);
-
-    // Filtro por categoría
-    if (category && category !== 'all') {
-      query = query.eq('category_id', category);
-    }
 
     // Filtro por búsqueda de texto
     if (search && search.trim()) {
@@ -189,6 +200,7 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
 
     if (error) throw new Error(`Error al buscar insumos: ${error.message}`);
 
+    // Mapear datos
     // Mapear datos
     const supplies: SupplyListRow[] = (data ?? []).map((row: Record<string, unknown>) => {
       const sc = row.supply_categories as { name?: string } | null;
@@ -202,7 +214,11 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
         expiry_date: (row.expiry_date as string | null) ?? null,
         unit_price: row.unit_price != null ? Number(row.unit_price) : null,
         category_name: sc?.name ?? '—',
-        created_at: String(row.created_at ?? ''),
+        // Campos de auditoría
+        created_by: row.created_by as string | undefined,
+        created_by_name: row.created_by_name as string | undefined,
+        created_by_role: row.created_by_role as string | undefined,
+        created_at: row.created_at as string | undefined,
       };
     });
 
@@ -252,6 +268,13 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
       throw new Error('Debes iniciar sesión para registrar insumos.');
     }
 
+    // Obtener perfil del usuario
+    const { data: profile } = await this.supabase
+      .from('profiles')
+      .select('full_name, role')
+      .eq('id', user.id)
+      .single();
+
     const name = input.name.trim();
     if (name.length < 2) {
       throw new Error('El nombre debe tener al menos 2 caracteres.');
@@ -291,6 +314,10 @@ export class SupabaseInventoryRepository implements IInventoryRepository {
       current_stock: input.current_stock,
       min_stock: input.min_stock,
       registered_by: user.id,
+      // Campos de auditoría
+      created_by: user.id,
+      created_by_role: profile?.role || 'EMPLEADO',
+      created_by_name: profile?.full_name || user.email,
     };
 
     if (expiry) row.expiry_date = expiry;

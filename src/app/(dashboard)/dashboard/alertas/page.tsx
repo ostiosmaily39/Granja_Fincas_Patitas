@@ -71,7 +71,8 @@ export default function AlertasPage() {
     try {
       setStockAlertsLoading(true);
       setStockAlertsError(null);
-      const { data, error } = await createClient()
+      const supabase = createClient();
+      const { data, error } = await supabase
         .from('stock_alerts')
         .select(`
           id, alert_type, current_value, threshold_value, created_at,

@@ -33,7 +33,36 @@ export class SupabaseProfileRepository implements IProfileRepository {
       .order('created_at', { ascending: false });
       
     if (error) throw new Error(error.message);
-    return ProfileSchema.array().parse(data);
+    
+    if (!data) return [];
+    
+    const result = ProfileSchema.array().safeParse(data);
+    
+    if (!result.success) {
+      console.warn('⚠️ Se encontraron perfiles con datos inválidos:');
+      
+      // Mostrar detalles de cada perfil inválido
+      result.error.issues.forEach((issue) => {
+        const profileIndex = issue.path[0] as number; // ← Agregar 'as number'
+        const profile = data[profileIndex];
+        
+        if (profile) {
+          console.warn(`❌ Perfil #${profileIndex} - ID: ${profile.id} - Email: "${profile.email}"`);
+          console.warn(`   Problema: ${issue.message}`);
+        }
+      });
+      
+      // Filtrar solo los perfiles válidos
+      const validProfiles = data.filter((profile) => 
+        ProfileSchema.safeParse(profile).success
+      );
+      
+      console.log(`✅ Mostrando ${validProfiles.length} perfiles válidos de ${data.length} totales`);
+      
+      return validProfiles;
+    }
+    
+    return result.data;
   }
 
   async deactivate(id: string, supabaseClient?: SupabaseClient): Promise<void> {

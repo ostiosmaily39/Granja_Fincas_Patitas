@@ -11,6 +11,8 @@ import { Sprout, CheckCircle2, XCircle, Clock, Plus, Pencil, Loader2, Search, Tr
 import { createClient } from '@/utils/supabase/client';
 import { useUserRole } from '@/hooks/useUserRole';
 import { SupabaseReproductionRepository } from '@/repositories/supabase/ReproductionRepository';
+import CreatorBadge from '@/components/ui/CreatorBadge';
+import { useAuth } from '@/contexts/AuthContext';
 import type {
   GestationStatus,
   ReproductiveEventWithRelations,
@@ -74,6 +76,7 @@ function getStatusBadge(status: GestationStatus) {
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function ReproduccionPage() {
+  const { user } = useAuth();
   const [repo] = useState(() => new SupabaseReproductionRepository(createClient()));
   const userRole = useUserRole();
   const isAdmin = userRole === 'ADMINISTRADOR';
@@ -84,6 +87,13 @@ export default function ReproduccionPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [statusEvent, setStatusEvent] = useState<ReproductiveEventWithRelations | null>(null);
 
+  // Función para verificar permisos de edición
+  const canEditReproduction = (event: ReproductiveEventWithRelations) => {
+    if (user?.role === 'ADMINISTRADOR' || user?.role === 'ENCARGADO') return true;
+    return (event as any).created_by === user?.id;
+  };
+
+  // ── Filtros ──
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('todas');
@@ -160,7 +170,15 @@ export default function ReproduccionPage() {
       key: 'cross',
       header: 'Identificación del cruce',
       render: (r) => (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-2">
+          {/* Badge del creador - ARRIBA A LA IZQUIERDA */}
+          <CreatorBadge
+            creatorName={(r as any).created_by_name}
+            creatorRole={(r as any).created_by_role}
+            createdAt={r.created_at}
+          />
+
+          {/* Identificación del cruce */}
           <span className="font-extrabold text-gray-900">{crossTitle(r)}</span>
           <span className="text-xs font-bold text-gray-400">
             Hembra: {r.female_animal?.code ?? '—'}
@@ -222,8 +240,20 @@ export default function ReproduccionPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); setStatusEvent(r); }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 py-2 text-xs font-extrabold text-[var(--brand)] hover:bg-gray-50 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!canEditReproduction(r)) {
+                alert('No tienes permiso para cambiar el estado de este evento. Solo puedes editar eventos que tú mismo registraste.');
+                return;
+              }
+              setStatusEvent(r);
+            }}
+            disabled={user?.role === 'EMPLEADO' && !canEditReproduction(r)}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-extrabold transition-colors ${canEditReproduction(r)
+              ? 'border-black/10 bg-white text-[var(--brand)] hover:bg-gray-50'
+              : 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
+            }`}
+            title={canEditReproduction(r) ? 'Actualizar estado' : 'No tienes permiso'}
           >
             <Pencil size={14} /> Estado
           </button>
@@ -242,7 +272,7 @@ export default function ReproduccionPage() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO']} redirectPath="/acceso-denegado">
+    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO', 'EMPLEADO']} redirectPath="/acceso-denegado">
       <div className="space-y-6 animate-fade-in pb-10">
 
         <PageHeader
@@ -250,14 +280,16 @@ export default function ReproduccionPage() {
           description="Registra cruces e inseminaciones, actualiza el estado de gestación y consulta el historial desde tu base de datos."
           icon={Sprout}
           actions={
-            <button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              className="flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm"
-            >
-              <Plus size={18} />
-              <span>Nuevo evento</span>
-            </button>
+            user?.role !== 'EMPLEADO' && (
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                className="flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm"
+              >
+                <Plus size={18} />
+                <span>Nuevo evento</span>
+              </button>
+            )
           }
         />
 

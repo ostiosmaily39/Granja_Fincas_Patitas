@@ -38,6 +38,10 @@ function rowToEvent(r: Record<string, unknown>): ReproductiveEvent {
     responsible: r[REPRO_COLS.responsible] ? String(r[REPRO_COLS.responsible]) : undefined,
     registered_by: r[REPRO_COLS.registeredBy] ? String(r[REPRO_COLS.registeredBy]) : undefined,
     notes: (r.notes as string | null) ?? null,
+    // Campos de auditoría (pueden no estar presentes en todas las consultas)
+    created_by: r.created_by ? String(r.created_by) : undefined,
+    created_by_name: r.created_by_name ? String(r.created_by_name) : undefined,
+    created_by_role: r.created_by_role ? String(r.created_by_role) : undefined,
     created_at: r.created_at as string | undefined,
     updated_at: r.updated_at as string | undefined,
   };
@@ -92,7 +96,7 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
       .select('*')
       .order('event_date', { ascending: false });
 
-    if (error) throw new Error(`Error al cargar eventos: ${error.message}`);
+    if (error) throw new Error(`Error al cargar reproducción: ${error.message}`);
 
     const rows = (data ?? []).map(rowToEvent);
 
@@ -130,6 +134,7 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
   async create(input: CreateReproductiveEventDTO): Promise<ReproductiveEvent> {
     const registered_by = await requireAuth(this.supabase);
 
+    // Verificar gestación activa existente
     const { data: active } = await this.supabase
       .from('reproductive_events')
       .select('id')
@@ -143,6 +148,13 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
       );
     }
 
+    // Obtener perfil del usuario para auditoría
+    const { data: profile } = await this.supabase
+      .from('profiles')
+      .select('full_name, role')
+      .eq('id', registered_by)
+      .single();
+
     const { data, error } = await this.supabase
       .from('reproductive_events')
       .insert({
@@ -155,6 +167,10 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
         [REPRO_COLS.responsible]: input.responsible.trim(),
         [REPRO_COLS.registeredBy]: registered_by,
         notes: input.notes?.trim() || null,
+        // Campos de auditoría
+        created_by: registered_by,
+        created_by_role: profile?.role || 'EMPLEADO',
+        created_by_name: profile?.full_name || 'Usuario',
       })
       .select('*')
       .single();
@@ -198,6 +214,9 @@ export class SupabaseReproductionRepository implements IReproductionRepository {
     }
     if (input.estimated_delivery_date_to !== undefined) {
       patch['estimated_delivery_date_to'] = input.estimated_delivery_date_to?.trim() || null;
+    }
+    if (input.notes !== undefined) {
+      patch['notes'] = input.notes?.trim() || null;
     }
 
     const { data, error } = await this.supabase

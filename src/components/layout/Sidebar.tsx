@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSidebar } from '@/contexts/SidebarContext';
-import { isAdministrator } from '@/lib/role-utils';
 import {
   Tractor,
   EggFried,
@@ -23,6 +22,7 @@ import {
   BarChart3,
   LayoutDashboard,
   Sprout,
+  Syringe,
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 
@@ -41,7 +41,7 @@ const adminNavItems: NavItem[] = [
   { name: 'Usuarios', href: '/dashboard/usuarios', icon: Users },
   { name: 'Animales', href: '/dashboard/animales', icon: Beef },
   { name: 'Insumos', href: '/dashboard/insumos', icon: PackageSearch },
-  { name: 'Vacunación', href: '/dashboard/vacunacion', icon: PackageSearch },
+  { name: 'Vacunación', href: '/dashboard/vacunacion', icon: Syringe },
   { name: 'Producción', href: '/dashboard/produccion', icon: EggFried },
   { name: 'Reproducción', href: '/dashboard/reproduccion', icon: Sprout },
   { name: 'Personal', href: '/dashboard/personal', icon: UserCheck },
@@ -49,14 +49,27 @@ const adminNavItems: NavItem[] = [
   { name: 'Auditoría', href: '/dashboard/auditoria', icon: Activity },
 ];
 
+const encargadoNavItems: NavItem[] = [
+  { name: 'Inicio', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Animales', href: '/dashboard/animales', icon: Beef },
+  { name: 'Insumos', href: '/dashboard/insumos', icon: PackageSearch },
+  { name: 'Vacunación', href: '/dashboard/vacunacion', icon: Syringe },
+  { name: 'Producción', href: '/dashboard/produccion', icon: EggFried },
+  { name: 'Reproducción', href: '/dashboard/reproduccion', icon: Sprout },
+  { name: 'Personal', href: '/dashboard/personal', icon: UserCheck },
+  { name: 'Alertas', href: '/dashboard/alertas', icon: Bell },
+  { name: 'Tareas', href: '/dashboard/empleado/tareas', icon: CheckSquare },
+];
+
 const employeeNavItems: NavItem[] = [
   { name: 'Gestión Diaria', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Tareas', href: '/dashboard/empleado/tareas', icon: CheckSquare },
-  { name: 'Alimentación', href: '/dashboard/empleado/alimentacion', icon: UtensilsCrossed },
   { name: 'Turnos', href: '/dashboard/empleado/turnos', icon: Clock },
-  { name: 'Animales a Cargo', href: '/dashboard/empleado/animales', icon: Beef },
-  { name: 'Salud Animal', href: '/dashboard/empleado/salud', icon: Heart },
-  { name: 'Producción', href: '/dashboard/empleado/produccion', icon: BarChart3 },
+  { name: 'Animales', href: '/dashboard/animales', icon: Beef },
+  { name: 'Insumos', href: '/dashboard/insumos', icon: PackageSearch },
+  { name: 'Vacunación', href: '/dashboard/vacunacion', icon: Syringe },
+  { name: 'Producción', href: '/dashboard/produccion', icon: BarChart3 },
+  { name: 'Reproducción', href: '/dashboard/reproduccion', icon: Sprout },
 ];
 
 export default function Sidebar({ role: roleProp }: SidebarProps) {
@@ -64,9 +77,13 @@ export default function Sidebar({ role: roleProp }: SidebarProps) {
   const { role: roleFromContext } = useAuth();
   const { isSidebarOpen, closeSidebar } = useSidebar();
 
-  // Usa el rol del servidor si está disponible, si no el del contexto
   const role = roleProp || roleFromContext;
-  const navItems = isAdministrator(role) ? adminNavItems : employeeNavItems;
+
+  const navItems = role === 'ADMINISTRADOR'
+    ? adminNavItems
+    : role === 'ENCARGADO'
+      ? encargadoNavItems
+      : employeeNavItems;
 
   return (
     <>
@@ -79,7 +96,7 @@ export default function Sidebar({ role: roleProp }: SidebarProps) {
             <div className="flex flex-col">
               <span className="font-bold text-base text-gray-800 tracking-tight leading-none">Fincas y Patitas</span>
               <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400 mt-1">
-                {isAdministrator(role) ? 'Panel Admin' : 'Panel Empleado'}
+                {role === 'ADMINISTRADOR' ? 'Panel Admin' : role === 'ENCARGADO' ? 'Panel Encargado' : 'Panel Empleado'}
               </span>
             </div>
           </div>

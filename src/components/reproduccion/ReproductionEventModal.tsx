@@ -11,6 +11,7 @@ import type {
 import { labelAnimal } from '@/types/domain/reproduction.schema';
 import { Loader2 } from 'lucide-react';
 
+
 interface ReproductionEventModalProps {
   isOpen: boolean;
   onClose: () => void;

@@ -15,14 +15,18 @@ export type MilkProductionInput = z.infer<typeof MilkProductionSchema>;
 export interface MilkProductionRecord {
   id: string;
   animal_id: string;
-  date: string;
+  production_date: string; // Cambiado de 'date' a 'production_date'
   shift: string;
   quantity_liters: number;
-  quality_notes: string | null;
-  notes: string | null;
-  created_by: string | null;
-  created_at: string;
+  quality_notes?: string | null;
+  notes?: string | null;
+  registered_by?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_by_role?: string | null;
+  created_at?: string;
   animal?: {
+    id: string;
     code: string;
     notes: string | null;
   }
@@ -45,13 +49,14 @@ export type EggProductionInput = z.infer<typeof EggProductionSchema>;
 // Data schema as received from DB
 export interface EggProductionRecord {
   id: string;
-  animal_id: string | null;
-  batch_id: string | null;
-  date: string;
-  total_quantity: number;
-  damaged_quantity: number | null;
-  notes: string | null;
-  created_by: string | null;
-  created_at: string;
+  lot_name: string; // Cambiado de 'batch_id' a 'lot_name'
+  production_date: string; // Cambiado de 'date' a 'production_date'
+  quantity_units: number; // Cambiado de 'total_quantity' a 'quantity_units'
+  discarded_units?: number; // Cambiado de 'damaged_quantity' a 'discarded_units'
+  notes?: string | null;
+  registered_by?: string | null;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_by_role?: string | null;
+  created_at?: string;
 }
-

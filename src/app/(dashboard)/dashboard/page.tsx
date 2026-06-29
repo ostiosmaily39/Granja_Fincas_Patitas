@@ -3,9 +3,10 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import AdminDashboard from './AdminDashboard';
+import EncargadoDashboard from './EncargadoDashboard';
 import EmpleadoDashboard from './EmpleadoDashboard';
+import NotificationBanner from '@/components/notifications/NotificationBanner';
 import { Loader2 } from 'lucide-react';
-import { isAdministrator } from '@/lib/role-utils';
 
 export default function DashboardPage() {
   const { role, loading } = useAuth();
@@ -18,9 +19,13 @@ export default function DashboardPage() {
     );
   }
 
-  if (isAdministrator(role)) {
-    return <AdminDashboard />;
-  }
+  return (
+    <>
+      <NotificationBanner />
 
-  return <EmpleadoDashboard />;
+      {role === 'ADMINISTRADOR' && <AdminDashboard />}
+      {role === 'ENCARGADO' && <EncargadoDashboard />}
+      {role === 'EMPLEADO' && <EmpleadoDashboard />}
+    </>
+  );
 }

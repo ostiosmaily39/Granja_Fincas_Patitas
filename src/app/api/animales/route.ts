@@ -1,109 +1,52 @@
-import { createClient } from '@/utils/supabase/server';
-import { NextRequest, NextResponse } from 'next/server';
+import { apiSuccess, apiError, getAuthUser, parseBody } from '@/lib/api-helpers';
+import { SupabaseAnimalRepository } from '@/repositories/supabase/AnimalRepository';
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request) {
   try {
-    const { id } = params;
-    const supabase = await createClient();
-    const body = await request.json();
+    const { supabase } = await getAuthUser();
+    const repo = new SupabaseAnimalRepository(supabase);
 
-    // Verificar que el animal existe
-    const { data: existing, error: findError } = await supabase
-      .from('animals')
-      .select('id')
-      .eq('id', id)
-      .single();
+    const url = new URL(request.url);
+    const hasQuery = [...url.searchParams.keys()].length > 0;
 
-    if (findError || !existing) {
-      return NextResponse.json(
-        { success: false, error: 'Animal no encontrado' },
-        { status: 404 }
-      );
+    if (hasQuery) {
+      const params = {
+        page: url.searchParams.get('page') ? Number(url.searchParams.get('page')) : undefined,
+        limit: url.searchParams.get('limit') ? Number(url.searchParams.get('limit')) : undefined,
+        sort: url.searchParams.get('sort') ?? undefined,
+        order: (url.searchParams.get('order') as 'asc' | 'desc') ?? undefined,
+        species: url.searchParams.get('species') ?? undefined,
+        healthStatus: url.searchParams.get('healthStatus') ?? undefined,
+        vaccinationStatus: url.searchParams.get('vaccinationStatus') ?? undefined,
+        sex: url.searchParams.get('sex') ?? undefined,
+        status: url.searchParams.get('status') ?? undefined,
+        search: url.searchParams.get('search') ?? undefined,
+      };
+
+      const result = await repo.search(params);
+      return apiSuccess(result);
     }
 
-    // ✅ Actualizar SOLO con name (sin nickname)
-    const { data, error } = await supabase
-      .from('animals')
-      .update({
-        name: body.name || null,
-        current_weight_kg: body.current_weight_kg,
-        health_status: body.health_status,
-        vaccination_status: body.vaccination_status,
-        reproductive_status: body.reproductive_status,
-        status: body.status,
-        breed_id: body.breed_id || null,
-        notes: body.notes || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select();
-
-    if (error) {
-      console.error('Error actualizando animal:', error);
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      );
-    }
-
-    // ✅ Devolver datos actualizados + metadata
-    return NextResponse.json({
-      success: true,
-      data: data[0],
-      message: 'Animal actualizado correctamente',
-      metadata: {
-        timestamp: new Date().toISOString(),
-        rows_affected: data.length,
-        operation: 'UPDATE',
-        table: 'animals',
-      },
-    });
-  } catch (error) {
-    console.error('Error en PUT /api/animals/[id]:', error);
-    return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
-      { status: 500 }
-    );
+    const animals = await repo.getAll();
+    return apiSuccess(animals);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error interno';
+    const status = message === 'No autorizado' ? 401 : 500;
+    return apiError(message, status);
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: Request) {
   try {
-    const { id } = params;
-    const supabase = await createClient();
+    const { supabase } = await getAuthUser();
+    const body = await parseBody(request);
+    const repo = new SupabaseAnimalRepository(supabase);
 
-    const { data, error } = await supabase
-      .from('animals')
-      .select(`
-        *,
-        species:species_id (*),
-        breed:breed_id (*)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data,
-    });
-  } catch (error) {
-    console.error('Error en GET /api/animals/[id]:', error);
-    return NextResponse.json(
-      { success: false, error: 'Error interno del servidor' },
-      { status: 500 }
-    );
+    const created = await repo.create(body);
+    return apiSuccess(created, undefined, 201);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error interno';
+    const status = message === 'No autorizado' ? 401 : 400;
+    return apiError(message, status);
   }
 }

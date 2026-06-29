@@ -2,20 +2,19 @@ import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest
+
 ) {
   try {
-    // ✅ Asegurar que params se resuelve correctamente
-    const { id } = await params;
-    console.log('🚀 POST alimentacion para animal:', id);
-
     const supabase = await createClient();
     const body = await request.json();
     console.log('📦 Body recibido:', JSON.stringify(body, null, 2));
 
+    // ✅ Obtener animal_id del body
+    const { animal_id } = body;
+
     // ✅ Verificar que el ID es válido
-    if (!id) {
+    if (!animal_id) {
       return NextResponse.json(
         { success: false, error: 'ID de animal no proporcionado' },
         { status: 400 }
@@ -26,7 +25,7 @@ export async function POST(
     const { data: animal, error: animalError } = await supabase
       .from('animals')
       .select('id')
-      .eq('id', id)
+      .eq('id', animal_id)
       .single();
 
     if (animalError || !animal) {
@@ -92,7 +91,7 @@ export async function POST(
 
     // Guardar registro
     const record = {
-      animal_id: id,
+      animal_id: animal_id,
       supply_id: body.supply_id,
       quantity: body.quantity,
       unit: body.unit || supply.unit || 'kg',

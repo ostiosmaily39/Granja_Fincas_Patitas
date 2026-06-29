@@ -181,12 +181,21 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
         ? payload.breed_id
         : null;
 
-    const nameTrim = payload.name?.trim() || null;
-    const notesTrim = payload.notes?.trim() || null;
-    const combinedNotes = notesTrim || null;
+    const nameTrim = payload.name?.trim();
+    const notesTrim = payload.notes?.trim();
+    const noteLines: string[] = [];
+    if (nameTrim) noteLines.push(`Apodo: ${nameTrim}`);
+    if (notesTrim) noteLines.push(notesTrim);
+    const combinedNotes = noteLines.length ? noteLines.join('\n\n') : null;
+
+    // Obtener información del perfil del usuario
+    const { data: profile } = await this.supabase
+      .from('profiles')
+      .select('full_name, role')
+      .eq('id', user.id)
+      .single();
 
     const animalToInsert: Record<string, unknown> = {
-      name: nameTrim,
       species_id: payload.species_id,
       breed_id: breedId,
       sex: payload.sex,
@@ -207,6 +216,10 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
       father_external: payload.father_external?.trim() || null,
       notes: combinedNotes,
       registered_by: user.id,
+      // Campos de auditoría
+      created_by: user.id,
+      created_by_role: profile?.role || 'EMPLEADO',
+      created_by_name: profile?.full_name || user.email,
     };
 
     const { data, error } = await this.supabase
@@ -223,60 +236,18 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
   }
 
   async update(id: string, payload: Partial<Animal>): Promise<Animal> {
-    const existing = await this.getById(id);
-    if (!existing) {
-      throw new Error('Animal no encontrado');
-    }
+    // Obtener usuario actual
+    const { data: { user } } = await this.supabase.auth.getUser();
 
-    const updateData: Record<string, unknown> = {};
-
-    if (payload.breed_id !== undefined) {
-      updateData.breed_id = payload.breed_id || null;
+    if (user) {
+      // Agregar información de quién actualizó
+      (payload as any).updated_by = user.id;
+      (payload as any).updated_at = new Date().toISOString();
     }
-    if (payload.current_weight_kg !== undefined) {
-      updateData.current_weight_kg = payload.current_weight_kg;
-    }
-    if (payload.health_status !== undefined) {
-      updateData.health_status = toDbHealthStatus(payload.health_status);
-    }
-    if (payload.vaccination_status !== undefined) {
-      updateData.vaccination_status = toDbVaccinationStatus(payload.vaccination_status);
-    }
-    if (payload.reproductive_status !== undefined) {
-      updateData.reproductive_status = toDbReproductiveStatus(
-        payload.reproductive_status,
-        existing.sex
-      );
-    }
-    if (payload.status !== undefined) {
-      updateData.status = toDbAnimalStatus(payload.status);
-      const egressReason = toDbEgressReason(payload.status);
-      if (egressReason) {
-        updateData.egress_reason = egressReason;
-        updateData.egress_date = new Date().toISOString().slice(0, 10);
-      } else if (payload.status === 'activo') {
-        updateData.egress_reason = null;
-        updateData.egress_date = null;
-        // ✅ CORRECCIÓN: Usar Record<string, unknown> para evitar errores de tipo
-        updateData.egress_notes = null;
-      }
-    }
-    if (payload.notes !== undefined) {
-      updateData.notes = payload.notes;
-    }
-    if (payload.name !== undefined) {
-      updateData.name = payload.name?.trim() || null;
-    }
-    // ✅ CORRECCIÓN: Usar Record<string, unknown> para egress_notes
-    if ((payload as any).egress_notes !== undefined) {
-      updateData.egress_notes = (payload as any).egress_notes;
-    }
-
-    updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await this.supabase
       .from('animals')
-      .update(updateData)
+      .update(payload)
       .eq('id', id)
       .select()
       .single();
@@ -289,10 +260,7 @@ export class SupabaseAnimalRepository implements IAnimalRepository {
   }
 
   async changeStatus(id: string, newStatus: Animal['status'], notes?: string): Promise<Animal> {
-    const updateData: Partial<Animal> = { 
-      status: newStatus 
-    };
-    
+    const updateData: Partial<Animal> = { status: newStatus };
     if (newStatus === 'descartado' || newStatus === 'vendido' || newStatus === 'muerto') {
       (updateData as any).egress_date = new Date().toISOString();
       if (notes) (updateData as any).egress_notes = notes;

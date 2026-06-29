@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/client';
 import { SupabaseReproductionRepository } from '@/repositories/supabase/ReproductionRepository';
 import { SupabaseAnimalRepository } from '@/repositories/supabase/AnimalRepository';
 import type { AnimalWithRelations } from '@/types/domain/animal.schema';
+import type { EventType } from '@/types/domain/reproduction.schema';
 
 interface Props {
   isOpen: boolean;
@@ -24,12 +25,10 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
-  // Selected Animal
   const [selectedFemale, setSelectedFemale] = useState<AnimalWithRelations | null>(null);
 
-  // Form state
   const [eventDate, setEventDate] = useState(todayISO());
-  const [serviceType, setServiceType] = useState<'IA' | 'monta_natural'>('IA');
+  const [serviceType, setServiceType] = useState<EventType>('inseminacion_artificial');
   const [fatherId, setFatherId] = useState('');
   const [fatherExternal, setFatherExternal] = useState('');
   const [responsible, setResponsible] = useState('');
@@ -80,17 +79,14 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
 
     setSaving(true);
     try {
-      await reproRepo.registerEvent({
+      await reproRepo.create({
         animal_id: selectedFemale.id,
-        event_type: 'servicio',
-        event_date: new Date(eventDate).toISOString(),
-        service_type: serviceType,
+        event_type: serviceType,
+        event_date: new Date(eventDate).toISOString().slice(0, 10),
         father_id: fatherId || null,
         father_external: fatherExternal.trim() || null,
         responsible: responsible.trim(),
         notes: notes.trim() || null,
-        result: 'pendiente',
-        offspring_count: 0
       });
       onSuccess();
       handleClose();
@@ -105,7 +101,7 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
     setStep(1);
     setSelectedFemale(null);
     setEventDate(todayISO());
-    setServiceType('IA');
+    setServiceType('inseminacion_artificial');
     setFatherId('');
     setFatherExternal('');
     setResponsible('');
@@ -114,8 +110,8 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
     onClose();
   };
 
-  const filteredFemales = females.filter(f => 
-    f.code.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredFemales = females.filter(f =>
+    f.code.toLowerCase().includes(search.toLowerCase()) ||
     (f.name || '').toLowerCase().includes(search.toLowerCase())
   );
 
@@ -125,7 +121,7 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-black/5 shrink-0">
           <div className="flex items-center gap-3">
@@ -191,23 +187,31 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
               <div className="flex p-1 bg-gray-50 rounded-2xl border border-black/5 gap-1">
                 <button
                   type="button"
-                  onClick={() => setServiceType('IA')}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${serviceType === 'IA' ? 'bg-white shadow-sm text-pink-600' : 'text-gray-400'}`}
+                  onClick={() => setServiceType('inseminacion_artificial')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${serviceType === 'inseminacion_artificial'
+                      ? 'bg-white shadow-sm text-pink-600'
+                      : 'text-gray-400'
+                    }`}
                 >
-                  IA
+                  Inseminación artificial
                 </button>
                 <button
                   type="button"
                   onClick={() => setServiceType('monta_natural')}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${serviceType === 'monta_natural' ? 'bg-white shadow-sm text-pink-600' : 'text-gray-400'}`}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${serviceType === 'monta_natural'
+                      ? 'bg-white shadow-sm text-pink-600'
+                      : 'text-gray-400'
+                    }`}
                 >
-                  Monta Natural
+                  Monta natural
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Fecha *</label>
+                  <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">
+                    Fecha *
+                  </label>
                   <input
                     type="datetime-local"
                     value={eventDate}
@@ -217,7 +221,9 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Responsable *</label>
+                  <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">
+                    Responsable *
+                  </label>
                   <input
                     type="text"
                     value={responsible}
@@ -230,7 +236,9 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
               </div>
 
               <div className="space-y-4 pt-2 border-t border-black/5">
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Identificación del Padre</h4>
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  Identificación del Padre
+                </h4>
                 <div className="relative">
                   <select
                     value={fatherId}
@@ -238,7 +246,11 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
                     className="w-full appearance-none bg-gray-50 border border-black/5 rounded-xl px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-pink-500 pr-10"
                   >
                     <option value="">— Macho de la granja —</option>
-                    {males.map((m) => <option key={m.id} value={m.id}>{m.code} · {m.breed?.name || 'Mestizo'}</option>)}
+                    {males.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.code} · {m.breed?.name || 'Mestizo'}
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-4 top-3.5 text-gray-400" size={16} />
                 </div>
@@ -252,7 +264,9 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
               </div>
 
               <div>
-                <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Notas</label>
+                <label className="block text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">
+                  Notas
+                </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -267,7 +281,13 @@ export default function GlobalReproductionModal({ isOpen, onClose, onSuccess }: 
               )}
 
               <div className="flex gap-3">
-                <button type="button" onClick={() => setStep(1)} className="flex-1 py-3.5 rounded-xl border border-black/10 font-bold text-sm text-gray-400 hover:bg-gray-50 transition-all">Volver</button>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="flex-1 py-3.5 rounded-xl border border-black/10 font-bold text-sm text-gray-400 hover:bg-gray-50 transition-all"
+                >
+                  Volver
+                </button>
                 <button
                   type="submit"
                   disabled={saving}

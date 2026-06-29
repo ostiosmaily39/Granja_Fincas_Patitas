@@ -96,3 +96,44 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return apiError(message, status);
   }
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { supabase, user } = await getAuthUser();
+    const { id } = await params;
+    const repo = new SupabaseAnimalRepository(supabase);
+
+    const existing = await repo.getById(id);
+    if (!existing) {
+      return apiError('Animal no encontrado', 404);
+    }
+
+    // Intentar leer un body opcional con notas
+    let notes: string | undefined;
+    try {
+      const maybe = await request.json();
+      if (maybe && typeof maybe.notes === 'string') notes = maybe.notes;
+    } catch (_) {
+      // ignore: no body
+    }
+
+    const updated = await repo.changeStatus(id, 'descartado', notes);
+
+    // Registrar evento de egreso
+    await supabase.from('animal_events').insert({
+      animal_id: id,
+      event_type: 'egreso',
+      event_date: new Date().toISOString(),
+      title: 'Animal descartado',
+      description: notes ?? 'Egreso por eliminación vía API',
+      metadata: { previousStatus: existing.status, newStatus: 'descartado' },
+      performed_by: user.id,
+    });
+
+    return apiSuccess(updated, { message: 'Animal descartado correctamente' });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error interno';
+    const status = message === 'No autorizado' ? 401 : 400;
+    return apiError(message, status);
+  }
+}

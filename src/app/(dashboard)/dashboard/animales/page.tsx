@@ -11,6 +11,20 @@ import { SupabaseAnimalRepository } from '@/repositories/supabase/AnimalReposito
 import { createClient } from '@/utils/supabase/client';
 import { AnimalWithRelations } from '@/types/domain/animal.schema';
 import AnimalFormModal from '@/components/animales/AnimalFormModal';
+import CreatorBadge from '@/components/ui/CreatorBadge';
+
+// Función para extraer el apodo del campo notes
+function extractNickname(notes: string | null | undefined): string | null {
+  if (!notes) return null;
+
+  // Buscar "Apodo: xxx" en las notas
+  const match = notes.match(/Apodo:\s*(.+)/i);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+
+  return null;
+}
 
 export default function AnimalesPage() {
   const router = useRouter();
@@ -203,17 +217,25 @@ export default function AnimalesPage() {
       header: 'Identificación',
       sortable: true,
       render: (a) => {
-        // ✅ Usar name directamente
+        const nickname = extractNickname(a.notes);
+
         return (
-          <div className="flex flex-col gap-1">
-            {/* Nombre del animal */}
-            {a.name && a.name.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {/* Badge del creador - ARRIBA A LA IZQUIERDA */}
+            <CreatorBadge
+              creatorName={(a as any).created_by_name}
+              creatorRole={(a as any).created_by_role}
+              createdAt={a.created_at}
+            />
+
+            {/* Apodo/Nombre del animal */}
+            {nickname && nickname.length > 0 ? (
               <span className="font-extrabold text-gray-900 text-base capitalize">
-                {a.name}
+                {nickname}
               </span>
             ) : (
               <span className="text-sm font-bold text-gray-400 italic">
-                Sin nombre
+                Sin apodo
               </span>
             )}
             {/* Código del animal */}
@@ -306,7 +328,7 @@ export default function AnimalesPage() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['ADMINISTRADOR']} redirectPath="/acceso-denegado">
+    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO', 'EMPLEADO']} redirectPath="/acceso-denegado">
       <div className="space-y-6 animate-fade-in pb-10">
         <PageHeader
           title="Inventario Pecuario"

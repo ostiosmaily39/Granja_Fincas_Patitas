@@ -72,16 +72,16 @@ export default function PersonalPage() {
       className: 'text-right',
       render: (p) => (
         <button className="text-xs font-bold bg-white border border-gray-200 px-4 py-2 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors shadow-sm">
-           Gestionar
+          Gestionar
         </button>
       )
     }
   ];
 
   return (
-    <RoleGuard allowedRoles={['ADMINISTRADOR']} redirectPath="/acceso-denegado">
+    <RoleGuard allowedRoles={['ADMINISTRADOR', 'ENCARGADO']} redirectPath="/acceso-denegado">
       <div className="space-y-6 animate-fade-in pb-10">
-        <PageHeader 
+        <PageHeader
           title="Personal y Usuarios"
           description="Administra los accesos y roles de los usuarios del sistema. Desactiva cuentas cuando sea necesario."
           icon={UserCheck}
@@ -96,7 +96,7 @@ export default function PersonalPage() {
               </h3>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 flex items-center justify-between">
             <div>
               <p className="text-[10px] uppercase font-extrabold text-gray-400 tracking-widest mb-1">Empleados Activos</p>
@@ -113,7 +113,7 @@ export default function PersonalPage() {
             <p className="font-bold">Cargando Personal...</p>
           </div>
         ) : (
-          <DataTable 
+          <DataTable
             columns={columns}
             data={profiles}
             keyExtractor={(p) => p.id}

@@ -26,6 +26,12 @@ export async function signup(formData: FormData) {
   const password = formData.get('password') as string;
   const fullName = formData.get('full_name') as string;
   const phone = formData.get('phone') as string;
+  const role = formData.get('role') as string;
+
+  // VALIDACIÓN: El rol es obligatorio
+  if (!role || (role !== 'ENCARGADO' && role !== 'EMPLEADO')) {
+    return redirect('/register?message=Debes seleccionar un rol (ENCARGADO o EMPLEADO)');
+  }
 
   const supabase = await createClient();
 
@@ -36,7 +42,7 @@ export async function signup(formData: FormData) {
       data: {
         full_name: fullName || 'Usuario Nuevo',
         phone: phone || '',
-        role: 'EMPLEADO',
+        role: role, // ← Ahora solo puede ser ENCARGADO o EMPLEADO
       },
       emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
     },

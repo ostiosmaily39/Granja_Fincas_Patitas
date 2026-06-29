@@ -169,7 +169,7 @@ export interface MockTask {
   title: string;
   description: string;
   assigned_to: string;
-  status: 'completada' | 'incompleta' | 'pendiente';
+  status: 'pendiente' | 'en_proceso' | 'completada' | 'incompleta'; // ← Agregar 'en_proceso'
   due_date: string;
   category: 'general' | 'individual';
 }

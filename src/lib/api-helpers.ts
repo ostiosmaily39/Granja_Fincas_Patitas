@@ -44,7 +44,7 @@ export async function parseBody<T>(request: Request, schema?: z.ZodType<T>): Pro
     return body as T;
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new Error(`Error de validación: ${error.errors.map(e => e.message).join(', ')}`);
+      throw new Error(`Error de validación: ${(error as any).issues?.map((e: any) => e.message).join(', ') || error.message}`);
     }
     throw new Error('Cuerpo de la petición inválido');
   }

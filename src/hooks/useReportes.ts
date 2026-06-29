@@ -1,15 +1,23 @@
 import { useState, useCallback } from 'react'
 import { reporteService } from '@/services/reporteService'
 import type {
-  ReporteInsumosResponse,
-  ReporteProduccionResponse,
-  ReporteGeneralResponse,
-  FiltroReporteInsumos,
-  FiltroReporteProduccion,
-  FiltroReporteGeneral,
+  VwReporteInsumos,
+  VwReporteProduccion,
+  VwReporteGeneralResumen,
   ReporteAlerta,
   ReportePlantilla
 } from '@/types/domain/reporte.schema'
+
+import type {
+  FiltroReporteInsumos,
+  FiltroReporteProduccion,
+  FiltroReporteGeneral
+} from '@/services/reporteService'
+
+// Alias para compatibilidad con el código existente
+type ReporteInsumosResponse = VwReporteInsumos[]
+type ReporteProduccionResponse = VwReporteProduccion[]
+type ReporteGeneralResponse = VwReporteGeneralResumen[]
 
 export function useReportes() {
   // Estados generales
@@ -118,7 +126,7 @@ export function useReportes() {
     setError(null)
     try {
       const data = await reporteService.marcarAlertaAtendida(id_alerta, id_usuario)
-      setAlertas(prev => prev.filter(a => a.id_alerta !== id_alerta))
+      setAlertas(prev => prev.filter(a => a.id !== id_alerta))
       return data
     } catch (e: any) {
       setError(e.message || 'Error al marcar alerta')

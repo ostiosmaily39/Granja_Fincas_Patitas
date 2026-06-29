@@ -27,6 +27,13 @@ export async function createMilkRecord(data: MilkProductionInput) {
   const { data: userData, error: authError } = await (await supabase).auth.getUser();
   if (authError || !userData?.user) return { error: 'No autorizado' };
 
+  // Obtener perfil del usuario
+  const { data: profile } = await (await supabase)
+    .from('profiles')
+    .select('full_name, role')
+    .eq('id', userData.user.id)
+    .single();
+
   const { error } = await (await supabase).from('milk_production').insert([{
     animal_id: data.animal_id,
     production_date: data.date,
@@ -34,6 +41,10 @@ export async function createMilkRecord(data: MilkProductionInput) {
     quantity_liters: data.quantity_liters,
     notes: data.notes || null,
     registered_by: userData.user.id,
+    // Campos de auditoría
+    created_by: userData.user.id,
+    created_by_role: profile?.role || 'EMPLEADO',
+    created_by_name: profile?.full_name || userData.user.email,
   }]);
 
   if (error) return { error: `Error de BD: ${error?.message || JSON.stringify(error)}` };
@@ -45,6 +56,13 @@ export async function createEggRecord(data: EggProductionInput) {
   const { data: userData, error: authError } = await (await supabase).auth.getUser();
   if (authError || !userData?.user) return { error: 'No autorizado' };
 
+  // Obtener perfil del usuario
+  const { data: profile } = await (await supabase)
+    .from('profiles')
+    .select('full_name, role')
+    .eq('id', userData.user.id)
+    .single();
+
   const { error } = await (await supabase).from('egg_production').insert([{
     lot_name: data.batch_id,
     production_date: data.date,
@@ -52,6 +70,10 @@ export async function createEggRecord(data: EggProductionInput) {
     discarded_units: data.damaged_quantity || 0,
     notes: data.notes || null,
     registered_by: userData.user.id,
+    // Campos de auditoría
+    created_by: userData.user.id,
+    created_by_role: profile?.role || 'EMPLEADO',
+    created_by_name: profile?.full_name || userData.user.email,
   }]);
 
   if (error) return { error: `Error de BD: ${error?.message || JSON.stringify(error)}` };
@@ -102,11 +124,18 @@ export async function getMilkRecords(
   const { shift, dateFrom, dateTo, limit = 50 } = filters;
 
   let query = (await supabase)
-    .from('milk_production')
-    .select(`*, animal:animals(code, notes)`)
-    .order('production_date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  .from('milk_production')
+  .select(`
+    *,
+    animal:animals(code, notes),
+    created_by,
+    created_by_name,
+    created_by_role,
+    created_at
+  `)
+  .order('production_date', { ascending: false })
+  .order('created_at', { ascending: false })
+  .limit(limit);
 
   if (shift && shift !== 'all') {
     query = query.eq('shift', shift);
@@ -146,11 +175,22 @@ export async function getEggRecords(
   const { dateFrom, dateTo, limit = 50 } = filters;
 
   let query = (await supabase)
-    .from('egg_production')
-    .select(`id, lot_name, production_date, quantity_units, discarded_units, notes`)
-    .order('production_date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  .from('egg_production')
+  .select(`
+    id,
+    lot_name,
+    production_date,
+    quantity_units,
+    discarded_units,
+    notes,
+    created_by,
+    created_by_name,
+    created_by_role,
+    created_at
+  `)
+  .order('production_date', { ascending: false })
+  .order('created_at', { ascending: false })
+  .limit(limit);
 
   if (dateFrom) query = query.gte('production_date', dateFrom);
   if (dateTo) query = query.lte('production_date', dateTo);
